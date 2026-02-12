@@ -112,11 +112,12 @@ button:hover {
 async function kirim() {
     const input = document.getElementById("userInput");
     const chatbox = document.getElementById("chatbox");
-    const pesan = input.value.trim();
+    const pesan = input.value;
+
     if (!pesan) return;
 
     chatbox.innerHTML += `<div class="message user">${pesan}</div>`;
-    chatbox.innerHTML += `<div class="message ai" id="loading">Mengetik...</div>`;
+    chatbox.innerHTML += `<div class="message ai">Mengetik...</div>`;
     chatbox.scrollTop = chatbox.scrollHeight;
     input.value = "";
 
@@ -128,13 +129,21 @@ async function kirim() {
         });
 
         const data = await response.json();
-        document.getElementById("loading").remove();
-        chatbox.innerHTML += `<div class="message ai">${data.reply}</div>`;
+
+        chatbox.lastChild.remove();
+
+        const jawaban = data.choices?.[0]?.message?.content || "AI tidak merespons";
+
+        chatbox.innerHTML += `<div class="message ai">${jawaban}</div>`;
+
     } catch (err) {
-        document.getElementById("loading").innerText = "Server error...";
+        chatbox.lastChild.remove();
+        chatbox.innerHTML += `<div class="message ai">Server error ⚠️</div>`;
     }
 
     chatbox.scrollTop = chatbox.scrollHeight;
+
+
 }
 </script>
 </body>
