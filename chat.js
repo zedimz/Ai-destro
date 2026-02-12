@@ -1,9 +1,9 @@
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
   try {
+    if (req.method !== "POST") {
+      return res.status(405).json({ message: "Method not allowed" });
+    }
+
     const { message } = req.body;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -15,18 +15,21 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "Kamu adalah Destro AI yang ramah dan pintar." },
+          { role: "system", content: "Kamu adalah Destro AI, ramah dan pintar." },
           { role: "user", content: message }
         ]
       })
     });
 
     const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Tidak ada respon.";
 
-    res.status(200).json({ reply });
+    if (!response.ok) {
+      return res.status(500).json({ error: data });
+    }
+
+    res.status(200).json(data);
 
   } catch (error) {
-    res.status(500).json({ error: "Gagal mengambil respon AI" });
+    res.status(500).json({ error: error.message });
   }
 }
