@@ -132,7 +132,8 @@ async function kirim() {
 
         chatbox.lastChild.remove();
 
-        const jawaban = data.choices?.[0]?.message?.content || "AI tidak merespons";
+        const jawaban = data.reply || JSON.stringify(data);
+
 
         chatbox.innerHTML += `<div class="message ai">${jawaban}</div>`;
 
