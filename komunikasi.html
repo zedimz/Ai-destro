@@ -1,0 +1,5408 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+
+    <title>Chat App Premium & Admin</title>
+    <!-- Import Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* =========================================
+           CSS VARIABLES & TEMA (LIGHT, DARK, CUSTOM)
+           ========================================= */
+        :root {
+            --bg-main: #f0f2f5;
+            --bg-chat: #e5ddd5;
+            --text-main: #111b21;
+            --text-muted: #667781;
+            --primary-color: #42C5FF; /* Warna default */
+            --primary-hover: #42C5FF;
+            --msg-in: #ffffff;
+            --msg-out: #d9fdd3;
+            --panel-bg: #ffffff;
+            --border-color: #d1d7db;
+            --custom-color: #ff0000; /* Warna merah dinamis yang diatur admin */
+        }
+
+        [data-theme="dark"] {
+            --bg-main: #111b21;
+            --bg-chat: #0b141a;
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --primary-color: #42C5FF;
+            --primary-hover: #008f6f;
+            --msg-in: #202c33;
+            --msg-out: #005c4b;
+            --panel-bg: #000000;
+            --border-color: #222e35;
+        }
+
+        [data-theme="custom"] {
+            /* Menggunakan warna dinamis dari Admin */
+            --primary-color: var(--custom-color);
+            --primary-hover: var(--custom-color);
+            --msg-out: var(--custom-color);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            transition: background-color 0.3s;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            background-color: var(--panel-bg);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Layar (Screens) */
+        .screen {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: var(--panel-bg);
+            z-index: 10;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* =========================================
+           UI: LOGIN / REGISTER
+           ========================================= */
+        .auth-container {
+            padding: 40px 20px;
+            text-align: center;
+            margin: auto;
+        }
+        .input-box {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-main);
+            font-size: 16px;
+        }
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: opacity 0.2s;
+            margin-top: 10px;
+        }
+        .btn:hover { opacity: 0.9; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-gold { background-color: #ffd700; color: #000; }
+
+        /* =========================================
+           UI: CHAT MAIN
+           ========================================= */
+        .header {
+            background-color: var(--panel-bg);
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 20;
+        }
+        .header h3 { margin: 0; font-size: 18px; }
+        .settings-btn {
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .chat-area {
+    flex: 1;
+    background-color: var(--bg-chat);
+    background-size: cover;
+    background-position: center;
+    padding: 15px 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.bubble {
+    max-width: 78%;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 14.5px;
+    line-height: 1.4;
+    position: relative;
+    word-wrap: break-word;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.bubble-in {
+    background-color: var(--msg-in);
+    align-self: flex-start;
+    border-top-left-radius: 2px;
+    color: var(--text-main);
+}
+
+.bubble-out {
+    background-color: var(--msg-out);
+    align-self: flex-end;
+    border-top-right-radius: 2px;
+    color: var(--text-main);
+}
+
+.sender-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 2px;
+    display: block;
+}
+/* Container Utama dibuat Floating / Melayang */
+.input-area {
+    position: fixed;
+    bottom: 12px;
+    left: 10px;
+    right: 10px;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+    padding: 0;
+    border-top: none;
+}
+
+/* Kolom Input Putih Melayang dengan Shadow Tajam */
+.input-area input {
+    flex: 1;
+    height: 46px;
+    padding: 0 18px;
+    border-radius: 23px;
+    border: none;
+    background-color: #ffffff;
+    color: var(--text-main);
+    outline: none;
+    font-size: 14.5px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Efek Ngambang */
+    transition: all 0.2s ease;
+}
+
+/* Efek saat diklik / ngetik */
+.input-area input:focus {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22), 0 0 0 2px var(--primary-color);
+}
+
+/* Tombol Klip di Samping Input */
+.input-area .settings-btn {
+    background-color: #ffffff;
+    border: none;
+    color: var(--primary-color);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* Efek Ngambang */
+}
+
+/* Tombol Kirim Bulat Melayang */
+.btn-send {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Efek Ngambang */
+    transition: transform 0.15s ease, background-color 0.2s ease;
+}
+
+.btn-send:active {
+    transform: scale(0.92);
+}
+
+.btn-send svg {
+    margin-left: 2px;
+}
+
+/* Tambahkan Padding Bawah di Chat Box Biar Pesan Terakhir Gak Tertutup Floating Input */
+.chat-area {
+    padding-bottom: 70px !important;
+}
+
+/* Container Preview Gambar Melayang di Atas Input Area */
+.image-preview-container {
+    position: fixed;
+    bottom: 66px; /* Pas di atas input-area */
+    left: 10px;
+    right: 10px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 8px 12px;
+    z-index: 101; /* Di atas input-area */
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.preview-card-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.preview-card-content img {
+    height: 50px;
+    width: 50px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.preview-actions select {
+    padding: 6px 10px;
+    border-radius: 12px;
+    border: 1px solid #ddd;
+    font-size: 12.5px;
+    outline: none;
+    background: #f8f9fa;
+    color: var(--text-main);
+}
+
+.btn-remove-preview {
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* Gambar di Bubble Chat */
+.chat-media-img {
+    border-radius: 10px;
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* Biar chat gak tertutup pas preview muncul */
+.chat-area.has-preview {
+    padding-bottom: 130px !important;
+}
+
+        /* =========================================
+           UI: SETTINGS & ADMIN
+           ========================================= */
+        .settings-content {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .setting-group {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .toggle-wrap {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            background: var(--primary-color);
+            color: white;
+        }
+        /* ================= BOTTOM NAVIGATION BAR (FLOATING STYLE) ================= */
+.bottom-nav {
+    display: none; /* Disembunyikan dulu sampai user login */
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    position: fixed; 
+    
+    /* 🔥 NAIKKAN JARAK BOTTOM DARI 12px DIBUAT JADI 24px 🔥 */
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px)); 
+    left: 16px;   
+    right: 16px;  
+    width: auto;  
+    
+    height: 60px;
+    border-radius: 20px; 
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); 
+    z-index: 99;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+
+.nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    height: 100%;
+}
+
+.nav-item.active {
+    color: var(--primary-color);
+}
+
+.nav-item span {
+    font-size: 20px;
+    margin-bottom: 2px;
+}
+
+/* Menyesuaikan tinggi area konten biar scroll paling bawah gak ketutupan nav ngambang */
+.home-content-area {
+    flex: 1;
+    height: calc(100dvh - 120px); 
+    overflow-y: auto;
+    background-color: var(--bg-main);
+    padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px)); 
+}
+
+/* Styling Avatar mirip WA */
+.avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-right: 12px;
+    object-fit: cover;
+
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.avatar-small {
+    width: 35px;
+    height: 35px;
+    font-size: 14px;
+    margin-right: 8px;
+}
+
+.contact-item {
+    padding: 10px 12px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.contact-info {
+    flex: 1;
+}
+
+
+/* =========================================
+   UI STATUS WHATSAPP STYLE
+   ========================================= */
+.status-container {
+    padding: 15px 10px;
+}
+.status-tray {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+}
+.status-card {
+    min-width: 100px;
+    width: 100px;
+    height: 150px;
+    border-radius: 12px;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px;
+    background-size: cover;
+    background-position: center;
+}
+.status-card .avatar-ring {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-bg);
+    font-weight: bold;
+    font-size: 14px;
+}
+.status-card .username {
+    font-size: 11px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    word-break: break-word;
+}
+
+/* FULLSCREEN EDITOR MODAL */
+/* FULLSCREEN EDITOR MODAL (PEMBUAT STATUS) */
+
+/* FAB PENSIL (KHUSUS STATUS TEKS) */
+.fab-pensil {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background-color: #00a884;
+    color: white;
+    border: none;
+    font-size: 22px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99;
+}
+.fab-pensil:active {
+    transform: scale(0.92);
+}
+
+/* BOTTOM SHEET STATUS PICKER */
+.status-sheet-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 9999;
+    align-items: flex-end;
+}
+.status-sheet-content {
+    width: 100%;
+    max-height: 85vh;
+    background: #121b22;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp 0.25s ease-out;
+}
+@keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+.sheet-header {
+    padding: 15px;
+    color: white;
+}
+.sheet-top-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.sheet-close-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+}
+.sheet-title {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.sheet-menu-grid {
+    display: flex;
+    justify-content: space-around;
+    padding-bottom: 10px;
+}
+.sheet-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.sheet-menu-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #202c33;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+}
+.sheet-menu-label {
+    font-size: 12px;
+    color: #8696a0;
+}
+
+.gallery-section-title {
+    padding: 10px 15px;
+    color: #8696a0;
+    font-size: 14px;
+}
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    overflow-y: auto;
+    max-height: 45vh;
+    padding-bottom: 20px;
+}
+.gallery-tile {
+    aspect-ratio: 1 / 1;
+    background: #202c33;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.camera-tile {
+    flex-direction: column;
+    gap: 5px;
+    color: #00a884;
+    font-size: 12px;
+}
+.wa-delete-btn {
+    background: none;
+    border: none;
+    color: #ff5252;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-delete-btn:hover {
+    opacity: 0.8;
+}
+
+.wa-my-status-item .delete-icon {
+    color: #8696a0;
+    padding: 8px;
+    cursor: pointer;
+}
+
+.wa-my-status-item .delete-icon:hover {
+    color: #ff5252;
+}
+
+/* FULLSCREEN EDITOR MODAL */
+/* FULLSCREEN EDITOR MODAL PERBAIKAN */
+.status-editor-modal {
+    display: none;
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    right: 0; 
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #805b75;
+    z-index: 999999; /* Z-index sangat tinggi agar menutupi bottom navbar */
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 15px 90px 15px; /* Padding bawah 90px cegah tombol mepet/ketutupan */
+    box-sizing: border-box;
+}
+
+.editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.icon-btn {
+    background: rgba(0, 0, 0, 0.25);
+    border: none;
+    color: white;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.icon-btn:active {
+    background: rgba(0, 0, 0, 0.4);
+    transform: scale(0.92);
+}
+
+.editor-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 0;
+    width: 100%;
+    max-height: 55vh; /* Batasi tinggi preview/teks agar tombol selalu naik */
+    overflow: hidden;
+}
+
+.editor-body video,
+.editor-body img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+}
+
+.status-textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 26px;
+    text-align: center;
+    outline: none;
+    resize: none;
+    font-weight: 600;
+}
+
+.status-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.editor-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+}
+
+.status-type-tabs {
+    display: flex;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 4px;
+    border-radius: 25px;
+    gap: 4px;
+}
+
+.type-tab {
+    padding: 8px 20px;
+    border-radius: 20px;
+    color: #aebac1;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.type-tab.active {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    font-weight: bold;
+}
+
+/* TOMBOL KIRIM STATUS */
+.btn-publish-status {
+    width: 100%;
+    max-width: 320px;
+    height: 46px;
+    background-color: #00a884;
+    color: white;
+    border: none;
+    border-radius: 23px;
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn-publish-status:active {
+    transform: scale(0.98);
+}
+
+/* =========================================
+   STYLING VIEWER STATUS WHATSAPP STYLE
+   ========================================= */
+.wa-viewer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Progress Bar Horizontal */
+.wa-viewer-progress-container {
+    display: flex;
+    gap: 4px;
+    padding: 8px 12px 4px 12px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.wa-progress-bar-bg {
+    flex: 1;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.wa-progress-bar-fill {
+    height: 100%;
+    background: #ffffff;
+    width: 0%;
+    transition: width 0.1s linear;
+}
+
+/* Header Profil Viewer */
+.wa-viewer-header {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    z-index: 10;
+    color: white;
+}
+
+.wa-viewer-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wa-back-btn, .wa-more-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+.wa-viewer-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #00a884;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.wa-viewer-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.wa-viewer-name {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.wa-viewer-time {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Area Konten Utama */
+.wa-viewer-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.wa-viewer-text-body {
+    font-size: 26px;
+    color: #ffffff !important;
+    font-weight: 500;
+    text-align: center;
+    padding: 0 30px;
+    line-height: 1.4;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+
+
+.wa-viewer-media {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.wa-viewer-caption {
+    position: absolute;
+    bottom: 70px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: white;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 16px;
+    font-size: 15px;
+}
+
+/* Footer Reply & Reaction */
+.wa-viewer-footer {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+}
+
+.wa-reply-input-box {
+    flex: 1;
+    background: rgba(30, 30, 30, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    padding: 6px 16px;
+    backdrop-filter: blur(5px);
+}
+
+.wa-reply-input-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    font-size: 14px;
+    width: 100%;
+}
+
+.wa-reply-emojis {
+    display: flex;
+    gap: 8px;
+    font-size: 18px;
+}
+
+.wa-like-btn {
+    background: rgba(30, 30, 30, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.wa-viewer-footer-my {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+}
+
+.wa-views-badge {
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+}
+
+/* Daftar Status Saya Modal */
+.wa-my-status-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #111b21;
+    z-index: 9998;
+    color: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.wa-my-status-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 16px;
+    border-bottom: 1px solid #222d34;
+}
+
+.wa-my-status-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #1f2c34;
+    cursor: pointer;
+}
+
+.wa-my-status-thumb {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: white;
+    overflow: hidden;
+    background-size: cover;
+}
+
+.wa-my-status-info {
+    flex: 1;
+    margin-left: 12px;
+}
+
+.wa-my-status-info .views {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.wa-my-status-info .time {
+    font-size: 12px;
+    color: #8696a0;
+}
+/* Container Utama Viewer */
+#viewerBody {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: #000;
+}
+
+/* Mengatur Foto dan Video agar tidak membesar berlebihan */
+#viewerImageContent,
+#viewerVideoContent {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain; /* Menjaga rasio asli tanpa terdistorsi */
+    display: block;
+    margin: auto;
+}
+/* CONTAINER UTAMA VIEWER STATUS (FULLSCREEN) */
+.wa-viewer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #0b141a; /* Warna background dark WhatsApp */
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+    overflow: hidden;
+    user-select: none; /* Mencegah teks/gambar terblok saat di-tap cepat */
+    -webkit-user-select: none;
+}
+
+/* AREA UTAMA STATUS (FITUR TAP KIRI & KANAN) */
+.wa-viewer-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+/* CEGAH MEDIA MENGHALANGI EVENT KLIK ONCLICK */
+.wa-viewer-media,
+.wa-viewer-text-body,
+.wa-viewer-caption {
+    pointer-events: none; /* Penting: Klik tembus langsung ke .wa-viewer-body */
+}
+
+/* ATURAN FOTO DAN VIDEO AGAR TAMPIL PRESISI */
+.wa-viewer-media {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* TAMPILAN STATUS TEKS */
+.wa-viewer-text-body {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    box-sizing: border-box;
+    font-size: 26px;
+    font-weight: bold;
+    color: #ffffff;
+    text-align: center;
+    word-break: break-word;
+}
+
+/* CAPTION GAMBAR/VIDEO */
+.wa-viewer-caption {
+    position: absolute;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+/* HEADER & FOOTER TETAP BISA DIKLIK NORMAL */
+/* 1. Jadikan container header & footer tidak menghalangi klik ke area belakang */
+.wa-viewer-header,
+.wa-viewer-footer,
+.wa-viewer-footer-my,
+.wa-viewer-progress-container {
+    z-index: 20;
+    pointer-events: none; /* Klik akan tembus ke #viewerBody di belakangnya */
+}
+
+/* 2. Aktifkan kembali pointer-events KHUSUS untuk tombol & input agar bisa diklik */
+.wa-back-btn,
+.wa-more-btn,
+.wa-delete-btn,
+.wa-like-btn,
+.wa-reply-input-box,
+.wa-views-badge {
+    pointer-events: auto; /* Tombol & input tetap dapat diklik normal */
+}
+
+.status-reply-bar {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 1000;
+}
+
+.quick-reactions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.quick-reactions button {
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    font-size: 20px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    transition: transform 0.1s ease;
+}
+
+.quick-reactions button:active {
+    transform: scale(1.3);
+}
+
+.reply-input-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    padding: 6px 12px;
+    border-radius: 25px;
+}
+
+.reply-input-box input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff;
+    font-size: 14px;
+}
+
+.reply-input-box input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.reply-input-box button {
+    background: #00a884;
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* =========================================
+   1. ANIMASI TAP & RIPPLE EFFECT (TOUCH FEEDBACK)
+   ========================================= */
+.tap-effect {
+    transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.2s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.tap-effect:active {
+    transform: scale(0.96);
+    opacity: 0.85;
+}
+
+/* Penerapan otomatis ke tombol & item clickable */
+.btn, .nav-item, .contact-item, .status-card, .icon-btn, .fab-pensil, .sheet-menu-item {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, opacity 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn:active, .nav-item:active, .contact-item:active, .status-card:active, .icon-btn:active, .fab-pensil:active, .sheet-menu-item:active {
+    transform: scale(0.96);
+    opacity: 0.82;
+}
+
+/* =========================================
+   2. DESAIN TAB KONTAK MODERN (BIAR GA POLOSAN)
+   ========================================= */
+/* Wrapper Search Box Modern */
+.search-box-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.search-box-wrapper .search-icon {
+    position: absolute;
+    left: 14px;
+    color: var(--text-muted);
+    font-size: 18px;
+    pointer-events: none;
+}
+
+.search-input-custom {
+    width: 100%;
+    padding: 10px 14px 10px 40px;
+    border-radius: 22px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input-custom:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 168, 132, 0.15);
+}
+
+/* Card Item Kontak Premium */
+.contact-item-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+}
+
+.contact-item-card:hover {
+    background-color: var(--bg-main);
+}
+
+/* Avatar dengan Penanda Online / Initial Berwarna */
+.avatar-container {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.avatar-badge-online {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background-color: #25d366;
+    border: 2px solid var(--panel-bg);
+    border-radius: 50%;
+}
+
+/* Badge Pesan Belum Dibaca (Model Bulat WA) */
+.unread-badge-pill {
+    background-color: var(--primary-color);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: bold;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    animation: pulseBadge 1.5s infinite alternate;
+}
+
+@keyframes pulseBadge {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.08); }
+}
+/* =========================================
+   DESAIN KOTAK KONTAK MODERN + SHADOW & ANIMASI
+   ========================================= */
+.contact-item-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    
+    /* 1. EFEK SHADOW KOTAK (Biar tidak polos) */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08);
+    
+    /* 2. TRANSIKSI HALUS SAAT HOVER DAN DIKLIK */
+    transition: transform 0.18s cubic-bezier(0.25, 1, 0.5, 1), 
+                box-shadow 0.18s ease, 
+                background-color 0.2s ease;
+    
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Efek Layang saat Mouse Hover */
+.contact-item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.12);
+    background-color: var(--bg-main);
+}
+
+/* 3. ANIMASI SAAT DIKLIK / TAP (EFEK MEMBAL / KEMPIS HALUS) */
+.contact-item-card:active,
+.contact-item-card.clicking {
+    transform: scale(0.95) translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    opacity: 0.85;
+}
+
+/* Animasi Masuk Halus Saat Kontak Dimuat */
+@keyframes fadeInUpCard {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.contact-item-card {
+    animation: fadeInUpCard 0.2s ease-out forwards;
+}
+.modal-overlay {
+    position: fixed !important; /* Wajib fixed biar melayang */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85); /* Latar belakang gelap transparan */
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 999999 !important; /* Biar nimpah semua tab & header */
+}
+
+.modal-content {
+    background: #1f2c34;
+    padding: 20px;
+    border-radius: 16px;
+    text-align: center;
+    width: 80%;
+    max-width: 280px;
+    position: relative;
+}
+
+.avatar-big {
+    width: 180px;
+    height: 180px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 70px;
+    color: #fff;
+    font-weight: bold;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px; right: 15px;
+    font-size: 24px;
+    color: #fff;
+    cursor: pointer;
+}
+/* 1. Pasang pointer-events: none pada container preview */
+.image-preview-container {
+    position: fixed;
+    bottom: 66px;
+    left: 10px;
+    right: 10px;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 8px 12px;
+    z-index: 101;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    pointer-events: none; /* MEMATIKAN BLOKIR KLIK AGAR TEMBUS KE TOMBOL SEND */
+}
+
+/* 2. Aktifkan kembali klik hanya untuk elemen di dalam preview */
+.preview-card-content, 
+.preview-actions, 
+.preview-actions select, 
+.btn-remove-preview {
+    pointer-events: auto;
+}
+
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+<!-- SCREEN 1: AUTH (LOGIN, REGISTER, LUPA SANDI) -->
+<div id="auth-screen" class="screen active">
+    <div class="auth-container" style="padding: 20px;">
+        
+        <!-- FORM LOGIN -->
+        <div id="formLogin">
+            <h2>Masuk ke Chat</h2>
+            <input type="text" id="loginUsername" class="input-box" placeholder="Username (@nama)">
+            <input type="password" id="loginPassword" class="input-box" placeholder="Kata Sandi">
+            <button class="btn" onclick="login()">Masuk</button>
+            <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 13px;">
+                <a href="#" onclick="switchAuthForm('register')" style="color: #007bff;">Daftar Akun Baru</a>
+                <a href="#" onclick="switchAuthForm('reset')" style="color: #007bff;">Lupa Sandi?</a>
+            </div>
+        </div>
+
+        <!-- FORM DAFTAR -->
+        <div id="formRegister" style="display: none;">
+            <h2>Daftar Akun Baru</h2>
+            <input type="text" id="regUsername" class="input-box" placeholder="Username (misal: @destro)">
+            <input type="password" id="regPassword" class="input-box" placeholder="Kata Sandi">
+            <input type="text" id="regCode" class="input-box" placeholder="Kode Keamanan (6 angka untuk reset)" maxlength="6">
+            <button class="btn" onclick="register()">Daftar Akun</button>
+            <div style="margin-top: 15px; font-size: 13px; text-align: center;">
+                <a href="#" onclick="switchAuthForm('login')" style="color: #007bff;">Sudah punya akun? Masuk</a>
+            </div>
+        </div>
+
+        <!-- FORM LUPA SANDI -->
+        <div id="formReset" style="display: none;">
+            <h2>Reset Kata Sandi</h2>
+            <input type="text" id="resetUsername" class="input-box" placeholder="Username (@nama)">
+            <input type="text" id="resetCode" class="input-box" placeholder="Masukkan Kode Keamanan">
+            <input type="password" id="newPassword" class="input-box" placeholder="Sandi Baru">
+            <button class="btn" onclick="resetPassword()">Ubah Sandi</button>
+            <div style="margin-top: 15px; font-size: 13px; text-align: center;">
+                <a href="#" onclick="switchAuthForm('login')" style="color: #007bff;">Kembali ke Login</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+    <!-- SCREEN 2: BERANDA (TABS) -->
+    <div id="home-screen" class="screen">
+        <div class="header">
+            <h3 id="homeHeaderTitle">Chat Saya</h3>
+            <button class="settings-btn" onclick="showScreen('settings-screen')">⚙️</button>
+        </div>
+        
+<!-- TAB 1: KONTAK -->
+<div id="tab-kontak" style="display: block; padding: 15px;">
+    <!-- Header Tab Kontak & Tombol Tambah -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div>
+            <h4 style="margin: 0; color: var(--text-main); font-size: 18px; font-weight: 700;">Daftar Kontak</h4>
+            <small style="color: var(--text-muted); font-size: 12px;">Mulai percakapan dengan temanmu</small>
+        </div>
+        <button class="btn tap-effect" onclick="showScreen('add-contact-screen')" style="width: auto; margin: 0; padding: 8px 16px; font-size: 13px; border-radius: 20px;">
+            + Tambah
+        </button>
+    </div>
+
+    <!-- Tombol Bulat Melayang (Floating Action Button) -->
+<!-- Tombol Bulat Melayang -->
+<button onclick="goToNicknameScreen()" style="position: fixed; bottom: 80px; right: 20px; width: 52px; height: 52px; border-radius: 50%; background: rgba(255, 255, 255, 0); color: white; border: none; font-size: 22px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 99;">
+    🛠
+</button>
+
+    <!-- Kolom Pencarian Kontak Modern -->
+    <div class="search-box-wrapper">
+        <span class="material-symbols-outlined search-icon">search</span>
+        <input type="text" id="searchContactInput" class="search-input-custom" placeholder="Cari kontak atau username..." oninput="filterContacts()">
+    </div>
+    
+    <!-- Tempat List Kontak Tampil -->
+    <div id="contactList"></div>
+</div>
+
+
+<!-- TAB NICKNAME: UBAH NAMA PANGGILAN (DISISIPKAN DI SINI) -->
+<div id="tab-nickname" style="display: none; padding: 15px;">
+    <!-- Header Tab Edit Nickname & Tombol Kembali -->
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+        <button onclick="backToTabKontak()" style="background: none; border: none; color: var(--text-main); font-size: 22px; cursor: pointer; padding: 0;">←</button>
+        <div>
+            <h4 style="margin: 0; color: var(--text-main); font-size: 18px; font-weight: 700;">Ubah Nama Panggilan</h4>
+            <small style="color: var(--text-muted); font-size: 12px;">Kelola nama panggilan teman obrolanmu</small>
+        </div>
+    </div>
+
+    <!-- Container Daftar Kontak & User Chat -->
+    <div id="nicknameListContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+</div>
+
+
+<!-- TAB 2: STATUS (PEMBARUAN) -->
+
+<!-- TAB STATUS -->
+<div id="tab-status" style="display: none;" class="status-container">
+    <h4 style="margin-bottom: 12px; color: var(--text-muted);">Status</h4>
+    
+    <!-- Tray Status Horizontal -->
+    <div class="status-tray" id="statusTray">
+        <!-- Card "Tambah Status" (Khusus Foto/Video via Bottom Sheet) -->
+        <div class="status-card" onclick="showStatusSheet()" style="background-color: var(--panel-bg);">
+            <div class="avatar-ring" style="border-color: #ccc; color: var(--text-main);">+</div>
+            <span class="username" style="color: var(--text-main); text-shadow: none;">Tambah Status</span>
+        </div>
+        <!-- Card status user lain akan di-render di sini via JS -->
+    </div>
+
+    <!-- Floating Action Button (FAB) Pensil (Khusus Status Teks) -->
+    <button class="fab-pensil" onclick="openTextStatusEditor()" title="Buat Status Teks">
+        ✏️
+    </button>
+</div>
+
+<!-- BOTTOM SHEET SELECTION (MENU TAMBAH STATUS MEDIA/GALERI) -->
+<div id="statusPickerSheet" class="status-sheet-overlay" onclick="closeStatusSheet(event)">
+    <div class="status-sheet-content" onclick="event.stopPropagation()">
+        
+        <div class="sheet-header">
+            <div class="sheet-top-bar">
+                <button class="sheet-close-btn" onclick="hideStatusSheet()">✕</button>
+                <div class="sheet-title">Tambah status</div>
+            </div>
+
+            <div class="sheet-menu-grid">
+                <div class="sheet-menu-item" onclick="openTextStatusEditor()">
+                    <div class="sheet-menu-icon">✏️</div>
+                    <span class="sheet-menu-label">Teks</span>
+                </div>
+                <div class="sheet-menu-item" onclick="alert('Fitur Musik segera hadir!')">
+                    <div class="sheet-menu-icon">🎵</div>
+                    <span class="sheet-menu-label">Musik</span>
+                </div>
+                <div class="sheet-menu-item" onclick="alert('Fitur Tata Letak segera hadir!')">
+                    <div class="sheet-menu-icon">🍱</div>
+                    <span class="sheet-menu-label">Tata letak</span>
+                </div>
+                <div class="sheet-menu-item" onclick="alert('Fitur Suara segera hadir!')">
+                    <div class="sheet-menu-icon">🎙️</div>
+                    <span class="sheet-menu-label">Suara</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="gallery-section-title">Terbaru ▾</div>
+
+        <div class="gallery-grid">
+            <div class="gallery-tile camera-tile" onclick="triggerDeviceMedia('all')">
+                <span style="font-size: 24px;">📷</span>
+                <span>Kamera</span>
+            </div>
+
+            <input type="file" id="sheetFileInput" accept="image/*,video/*" style="display:none;" onchange="handleMediaSelected(event)">
+
+            <div class="gallery-tile" onclick="triggerDeviceMedia('image/*')">
+                <div style="display:flex; height:100%; align-items:center; justify-content:center; color:#8696a0; font-size:12px;">Pilih Foto</div>
+            </div>
+            <div class="gallery-tile" onclick="triggerDeviceMedia('video/*')">
+                <div style="display:flex; height:100%; align-items:center; justify-content:center; color:#8696a0; font-size:12px;">Pilih Video</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- FULLSCREEN EDITOR STATUS (MODAL) -->
+<div id="statusEditorModal" class="status-editor-modal">
+    <!-- Header Tools -->
+    <div class="editor-header">
+        <button class="icon-btn" onclick="closeStatusEditor()">
+            <!-- SVG Close Icon -->
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+        <div>
+            <button class="icon-btn" onclick="changeEditorBg()">
+                <!-- SVG Palette Icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.92 0 1.7-.75 1.7-1.67 0-.42-.16-.8-.43-1.09-.27-.28-.42-.68-.42-1.08 0-.92.75-1.66 1.67-1.66H17c2.76 0 5-2.24 5-5 0-4.97-4.48-9-10-9z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Body / Canvas Input -->
+    <div class="editor-body" id="editorBody">
+        <textarea id="statusTextContent" class="status-textarea" placeholder="Ketik status" rows="4"></textarea>
+
+        <div id="mediaPreviewContainer" style="display: none; max-width: 100%; max-height: 100%;">
+            <img id="imgPreview" style="max-width: 100%; max-height: 350px; border-radius: 10px; display: none;">
+            <video id="videoPreview" controls style="max-width: 100%; max-height: 350px; border-radius: 10px; display: none;"></video>
+        </div>
+    </div>
+
+    <input type="file" id="statusMediaFile" accept="image/*,video/*" style="display: none;" onchange="handleFileSelect(event)">
+
+    <!-- Bottom Action & Tab Selector -->
+    <div class="editor-bottom">
+        <div class="status-type-tabs">
+            <span class="type-tab" id="tabModeVideo" onclick="switchEditorMode('video')">Video</span>
+            <span class="type-tab" id="tabModeFoto" onclick="switchEditorMode('foto')">Foto</span>
+            <span class="type-tab active" id="tabModeTeks" onclick="switchEditorMode('teks')">Teks</span>
+        </div>
+
+        <button class="btn-publish-status" id="btnPublishStatus" onclick="publishStatus()">
+            <span>Kirim Status</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+    </div>
+</div>
+<!-- TAB DEVELOPER CUSTOM - BLUE EDITION -->
+<div id="tab-developer" style="display: none; padding: 10px; min-height: 85vh; overflow: hidden; position: relative;">
+
+    <!-- STYLE EFEK, WARNA BIRU MUDA & LAYOUT -->
+    <style>
+        :root {
+            /* WARNA BIRU MUDA CUSTOM */
+            --main-blue: #00b4d8; 
+            --main-blue-light: #90e0ef;
+            --main-blue-bg: rgba(118, 207, 225, 0);
+            --main-blue-border: rgba(0, 180, 216, 0.28);
+        }
+
+        /* 1. Animasi Datang Foto (Elastic Pop / Animasi Style) */
+        @keyframes photoAnimeEntry {
+            0% {
+                opacity: 0;
+                transform: translateY(-120px) scale(0.3) rotate(-10deg);
+            }
+            60% {
+                opacity: 1;
+                transform: translateY(15px) scale(1.08) rotate(3deg);
+            }
+            80% {
+                transform: translateY(-5px) scale(0.96) rotate(-1deg);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1) rotate(0deg);
+            }
+        }
+
+        /* Animasi Datang Elemen Lain dari Atas */
+        @keyframes slideFromTopSlow {
+            0% { opacity: 0; transform: translateY(-80px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Animasi Goyang Foto Pendulum */
+        @keyframes pendulumShake {
+            0% { transform: rotate(0deg); }
+            15% { transform: rotate(-14deg) scale(1.06); }
+            30% { transform: rotate(12deg) scale(1.06); }
+            45% { transform: rotate(-8deg) scale(1.02); }
+            60% { transform: rotate(6deg) scale(1.01); }
+            75% { transform: rotate(-3deg); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+
+        /* Animasi Getar Rantai */
+        @keyframes chainVibrate {
+            0% { transform: rotate(0deg); }
+            20% { transform: rotate(-5deg) scaleX(1.05); }
+            40% { transform: rotate(4deg); }
+            60% { transform: rotate(-2deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        /* Pulse Border Biru Muda */
+        @keyframes blueBorderPulse {
+            0% { box-shadow: 0 0 10px var(--main-blue-border), 0 8px 20px rgba(0,0,0,0.15); }
+            50% { box-shadow: 0 0 25px var(--main-blue), 0 12px 30px rgba(0, 180, 216, 0.35); }
+            100% { box-shadow: 0 0 10px var(--main-blue-border), 0 8px 20px rgba(0,0,0,0.15); }
+        }
+
+        /* Teks Indikator Tap Floating */
+        @keyframes floatTap {
+            0%, 100% { transform: translateY(0); opacity: 0.8; }
+            50% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        /* Classes Animasi */
+        .photo-anime-active {
+            animation: photoAnimeEntry 1.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards, blueBorderPulse 3.5s infinite ease-in-out;
+        }
+
+        .anim-slow-entry {
+            animation: slideFromTopSlow 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .shake-active {
+            animation: pendulumShake 0.8s ease-in-out !important;
+        }
+
+        .chain-shake-active {
+            animation: chainVibrate 0.8s ease-in-out !important;
+        }
+
+        /* Area Atas Mencar */
+        .dev-wrapper {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            margin-top: 15px;
+        }
+
+        /* Rantai SVG */
+        .dev-chain-element {
+            position: absolute;
+            top: -15px;
+            left: 5px;
+            width: 140px;
+            height: 120px;
+            z-index: 1;
+            pointer-events: none;
+            filter: drop-shadow(3px 4px 5px rgba(0,0,0,0.25));
+            transform-origin: top left;
+        }
+
+        /* Foto Frame 9:16 Biru Muda */
+        .dev-photo-frame {
+            position: absolute;
+            left: 8%;
+            top: 40px;
+            width: 108px;       /* Rasio 9:16 */
+            height: 192px;      /* Rasio 9:16 */
+            border-radius: 18px;
+            overflow: hidden;
+            border: 3px solid var(--main-blue);
+            background-color: #0d1b2a;
+            cursor: pointer;
+            z-index: 2;
+            user-select: none;
+            transform-origin: top center;
+        }
+
+        .dev-photo-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Badge Melayang "Tap Me!" */
+        .tap-hint-badge {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--main-blue);
+            color: #fff;
+            font-size: 9px;
+            font-weight: 800;
+            padding: 3px 8px;
+            border-radius: 12px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            animation: floatTap 2s infinite ease-in-out;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* Teks Nama Mencar di Kanan */
+        .dev-badge-text {
+            position: absolute;
+            left: 52%;
+            top: 70px;
+            z-index: 2;
+            text-align: left;
+        }
+
+        .dev-badge-tag {
+            display: inline-block;
+            background: var(--main-blue-bg);
+            color: var(--main-blue);
+            font-size: 11px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border: 1px solid var(--main-blue-border);
+            margin-bottom: 6px;
+        }
+
+        .dev-author-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--text-main, #222);
+            line-height: 1.2;
+            min-height: 24px;
+        }
+
+        .dev-sub-status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 18px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--main-blue);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--main-blue);
+        }
+
+        /* Cursor Berkedip Typewriter */
+        .cursor-blink {
+            display: inline-block;
+            width: 2px;
+            height: 14px;
+            background-color: var(--main-blue);
+            margin-left: 3px;
+            animation: blink 0.8s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Kartu Alasan */
+        .dev-reason-card {
+            position: relative;
+            width: 90%;
+            margin: 10px auto;
+            padding: 16px;
+            background: var(--main-blue-bg);
+            border-radius: 16px;
+            border: 1px solid var(--main-blue-border);
+            border-left: 5px solid var(--main-blue);
+            text-align: left;
+        }
+
+        .dev-reason-header {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--main-blue);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dev-reason-text {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.6;
+            margin: 0;
+            min-height: 48px;
+        }
+
+        /* Fitur Tambahan: Tags Fitur Utama */
+        .dev-features-grid {
+            display: flex;
+            gap: 8px;
+            width: 90%;
+            margin: 10px auto;
+            justify-content: space-between;
+        }
+
+        .feature-item {
+            flex: 1;
+            background: rgba(0, 180, 216, 0.05);
+            border: 1px solid var(--main-blue-border);
+            padding: 8px 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            color: var(--main-blue);
+            font-weight: 700;
+            text-align: center;
+        }
+
+        /* Kartu Waktu Pembuatan */
+        .dev-time-card {
+            position: relative;
+            width: 90%;
+            margin: 10px auto 20px auto;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 14px;
+            border: 1px dashed var(--main-blue-border);
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .dev-time-item {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .dev-time-item strong {
+            color: var(--main-blue);
+            font-weight: 700;
+        }
+
+        /* Efek Pulse Ring saat Tap Foto */
+        .tap-pulse-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: var(--main-blue-light);
+            border-radius: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            animation: pulseRing 0.7s ease-out;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        @keyframes pulseRing {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(8); opacity: 0; }
+        }
+    </style>
+
+    <!-- AREA ATAS (MENCAR) -->
+    <div class="dev-wrapper">
+        <!-- Rantai SVG -->
+        <svg class="dev-chain-element anim-slow-entry" id="chainSvg" viewBox="0 0 100 100">
+            <path d="M 0 0 L 70 65" stroke="#00b4d8" stroke-opacity="0.4" stroke-width="7" stroke-dasharray="7,3" stroke-linecap="round"/>
+            <path d="M 0 0 L 70 65" stroke="#90e0ef" stroke-width="3" stroke-dasharray="7,3" stroke-linecap="round"/>
+            <circle cx="70" cy="65" r="4" fill="#00b4d8" />
+        </svg>
+
+        <!-- Foto Rasio 9:16 -->
+        <div class="dev-photo-frame photo-anime-active" id="devPhotoFrame" onclick="handlePhotoTap(event)">
+            <img src="dimas.jpg" alt="Developer Photo">
+            <span class="tap-hint-badge">Tap Me!</span>
+        </div>
+
+        <!-- Teks Nama Mencar di Kanan -->
+        <div class="dev-badge-text anim-slow-entry">
+            <span class="dev-badge-tag">Developer</span>
+            <div class="dev-author-title" id="typewriterName"></div>
+            <div class="dev-sub-status" id="typewriterStatus"></div>
+        </div>
+    </div>
+
+    <!-- AREA TENGAH: DESKRIPSI ALASAN -->
+    <div class="dev-reason-card anim-slow-entry">
+        <div class="dev-reason-header">
+            <span class="material-symbols-outlined" style="font-size: 18px;">info</span>
+            <span>Alasan Pembuatan</span>
+        </div>
+        <p class="dev-reason-text">
+            <span id="typewriterText"></span><span class="cursor-blink"></span>
+        </p>
+    </div>
+
+    <!-- FITUR TAMBAHAN: HIGHLIGHTS BARU -->
+    <div class="dev-features-grid anim-slow-entry">
+        <div class="feature-item">⚡ Fast Interface</div>
+        <div class="feature-item">🔒 Secure System</div>
+        <div class="feature-item">🎨 Custom UI</div>
+    </div>
+
+    <!-- AREA BAWAH: INFORMASI WAKTU -->
+    <div class="dev-time-card anim-slow-entry">
+        <div class="dev-time-item">
+            <span>📅 Waktu Pembuatan:</span>
+            <strong>8 - 30 Agustus 2026</strong>
+        </div>
+        <div class="dev-time-item">
+            <span>⏰ Waktu Sekarang:</span>
+            <strong id="liveClock">00:00:00 WIB</strong>
+        </div>
+    </div>
+<!-- Modal Profile WhatsApp Style -->
+    <!-- KODE LAINNYA DI PALING BAWAH HTML -->
+
+    <!-- SCRIPT TYPEWRITER, RESET OTOMATIS & EFEK TAP -->
+    <script>
+        const nameText = "DIMAS DWI PANGESTU";
+        const statusText = "Mode Creator";
+        const descriptionMessage = "Aplikasi ini dirancang dan dibangun khusus untuk menciptakan antarmuka komunikasi yang responsif, ringan, serta menghadirkan pengalaman pengguna yang modern.";
+
+        let autoResetTimer = null;
+
+        // 1. Fungsi Efek Ketik Satu per Satu
+        function runTypewriter(elementId, text, speed, callback) {
+            const el = document.getElementById(elementId);
+            if (!el) return;
+            
+            el.innerHTML = "";
+            let i = 0;
+
+            function type() {
+                if (i < text.length) {
+                    if (elementId === 'typewriterStatus' && i === 0) {
+                        el.innerHTML = '<span class="status-dot"></span> ';
+                    }
+                    el.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                } else if (callback) {
+                    callback();
+                }
+            }
+            type();
+        }
+
+        // Jalankan Semua Pengetikan
+        function startAllTypewriters() {
+            clearTimeout(autoResetTimer);
+
+            runTypewriter('typewriterName', nameText, 50, function() {
+                runTypewriter('typewriterStatus', statusText, 40, function() {
+                    runTypewriter('typewriterText', descriptionMessage, 20, function() {
+                        // Setelah SEMUA TEKS SELESAI -> Tunggu 5 Detik lalu Reset
+                        autoResetTimer = setTimeout(resetAllAnimations, 5000);
+                    });
+                });
+            });
+        }
+
+        // 2. Fungsi Reset Ulang Animasi (Foto, Rantai, dan Teks)
+        function resetAllAnimations() {
+            const photoFrame = document.getElementById('devPhotoFrame');
+            const chainSvg = document.getElementById('chainSvg');
+
+            // Restart Animasi Foto (Masuk Kartun)
+            photoFrame.classList.remove('photo-anime-active');
+            void photoFrame.offsetWidth; // Trigger Reflow
+            photoFrame.classList.add('photo-anime-active');
+
+            // Restart Animasi Rantai
+            chainSvg.classList.remove('anim-slow-entry');
+            void chainSvg.offsetWidth;
+            chainSvg.classList.add('anim-slow-entry');
+
+            // Restart Teks
+            startAllTypewriters();
+        }
+
+        // 3. Waktu Realtime
+        function updateLiveClock() {
+            const clockEl = document.getElementById('liveClock');
+            if (!clockEl) return;
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('id-ID', { hour12: false }) + ' WIB';
+            clockEl.textContent = timeStr;
+        }
+        setInterval(updateLiveClock, 1000);
+        updateLiveClock();
+
+        // 4. Efek Tap Interaktif Foto
+        function handlePhotoTap(event) {
+            const photoFrame = document.getElementById('devPhotoFrame');
+            const chainSvg = document.getElementById('chainSvg');
+
+            // Shake Foto
+            photoFrame.classList.remove('shake-active');
+            void photoFrame.offsetWidth;
+            photoFrame.classList.add('shake-active');
+
+            // Getar Rantai
+            chainSvg.classList.remove('chain-shake-active');
+            void chainSvg.offsetWidth;
+            chainSvg.classList.add('chain-shake-active');
+
+            // Efek Pulse Ring
+            const ring = document.createElement('div');
+            ring.classList.add('tap-pulse-ring');
+            photoFrame.appendChild(ring);
+
+            setTimeout(() => { ring.remove(); }, 700);
+
+            // Ulangi Animasi & Timer saat Di-tap Manual
+            startAllTypewriters();
+        }
+
+        // Jalankan pertama kali
+        setTimeout(startAllTypewriters, 500);
+    </script>
+</div>
+
+<!-- OVERLAY VIEWER STATUS (WHATSAPP STYLE) -->
+<div id="whatsappStatusViewer" class="wa-viewer-overlay" style="display: none;">
+    
+    <!-- 1. Progress Bar di Atas -->
+    <div class="wa-viewer-progress-container" id="statusProgressContainer"></div>
+
+    <!-- 2. Header Status (Nama & Tombol Delete) -->
+    <div class="wa-viewer-header">
+        <div class="wa-viewer-user-info">
+            <button class="wa-back-btn" onclick="closeStatusViewer()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <div class="wa-viewer-avatar" id="viewerAvatar">A</div>
+            <div class="wa-viewer-text">
+                <span class="wa-viewer-name" id="viewerName">Status Saya</span>
+                <span class="wa-viewer-time" id="viewerTime">Baru saja</span>
+            </div>
+        </div>
+
+        <!-- Tombol Delete Status jika status milik sendiri -->
+        <button class="wa-delete-btn" id="btnDeleteCurrentStatus" style="display:none;" onclick="deleteCurrentStatus()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+    </div>
+
+    <!-- 3. Area Konten Utama Status (TAP KIRI = PREV, TAP KANAN = NEXT) -->
+    <div class="wa-viewer-body" id="viewerBody" onclick="handleViewerClick(event)">
+        <div id="viewerTextContent" class="wa-viewer-text-body"></div>
+        <img id="viewerImageContent" class="wa-viewer-media" style="display:none;" />
+        <video id="viewerVideoContent" class="wa-viewer-media" style="display:none;" autoplay playsinline></video>
+        <p id="viewerCaption" class="wa-viewer-caption" style="display:none;"></p>
+    </div>
+
+    <!-- 4. Footer: Balas Status (Untuk Status Orang Lain) -->
+<!-- Input Balas Status (Taruh di dalam status viewer overlay) -->
+<div class="status-reply-bar" id="statusReplyBar">
+    <!-- Reaksi Cepat Emoji -->
+    <div class="quick-reactions">
+        <button onclick="sendQuickReaction('❤️')">❤️</button>
+        <button onclick="sendQuickReaction('😂')">😂</button>
+        <button onclick="sendQuickReaction('😮')">😮</button>
+        <button onclick="sendQuickReaction('🔥')">🔥</button>
+    </div>
+
+    <!-- Form Kirim Pesan Teks -->
+    <div class="reply-input-box">
+        <input type="text" id="statusReplyInput" placeholder="Balas status..." onkeydown="if(event.key === 'Enter') sendStatusReply()">
+        <button onclick="sendStatusReply()">
+            <span class="material-symbols-outlined">send</span>
+        </button>
+    </div>
+</div>
+
+        <button class="wa-like-btn">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l8.78-8.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        </button>
+    </div>
+
+    <!-- 5. Footer: Penonton Status (Khusus Status Saya) -->
+    <div class="wa-viewer-footer-my" id="viewerMyFooter" style="display:none;">
+        <div class="wa-views-badge">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span id="viewerViewsCount">0</span>
+        </div>
+    </div>
+</div>
+
+
+<!-- MODAL DAFTAR DETAIL STATUS SAYA -->
+<div id="myStatusDetailModal" class="wa-my-status-modal" style="display: none;">
+    <div class="wa-my-status-header">
+        <button class="wa-back-btn" onclick="closeMyStatusDetail()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <h3>Status saya</h3>
+    </div>
+    <div class="wa-my-status-list" id="myStatusListContainer">
+        <!-- Item status milik sendiri akan dirender di sini -->
+    </div>
+</div>
+
+
+<!-- NAVIGASI BAWAH NATIVE -->
+<div class="bottom-nav" id="bottomNav">
+    <div class="nav-item active" onclick="switchTab('kontak', this)">
+        <span class="material-symbols-outlined">chat</span>
+        <p>Kontak</p>
+    </div>
+    <div class="nav-item" onclick="switchTab('status', this)">
+        <span class="material-symbols-outlined">donut_large</span>
+        <p>Status</p>
+    </div>
+    <div class="nav-item" onclick="switchTab('developer', this)">
+        <span class="material-symbols-outlined">code</span>
+        <p>Developer</p>
+    </div>
+</div>
+
+
+<!-- SCREEN 3: CHAT ROOM -->
+<div id="chat-screen" class="screen">
+    <div class="header">
+        <button class="settings-btn" onclick="closeChat()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        </button>
+        <h3 id="chatHeaderTitle">Chat Room</h3>
+        <button class="settings-btn" onclick="showScreen('settings-screen')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+        </button>
+    </div>
+<!-- Area Chat -->
+<!-- Area Chat -->
+<div class="chat-area" id="chatBox"></div>
+
+<!-- Container Preview Gambar (Melayang) -->
+<div id="imagePreviewContainer" class="image-preview-container" style="display: none;">
+    <div class="preview-card-content">
+        <img id="previewImgElement" src="" alt="Preview">
+        <span style="font-size: 12px; font-weight: 600; color: #555;">Preview</span>
+    </div>
+    <div class="preview-actions">
+        <select id="imageSizeSelect" onchange="changeImageSize(this.value)">
+            <option value="150">Kecil (150px)</option>
+            <option value="220" selected>Sedang (220px)</option>
+            <option value="300">Besar (300px)</option>
+        </select>
+        <button type="button" class="btn-remove-preview" onclick="clearSelectedImage()">&times;</button>
+    </div>
+</div>
+
+<!-- Input Area Melayang Utama -->
+<div class="input-area">
+    <input type="file" id="fileInput" style="display: none;" accept="image/*" onchange="handleFileUpload(event)">
+    
+    <button type="button" class="settings-btn" onclick="document.getElementById('fileInput').click()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+        </svg>
+    </button>
+
+    <input type="text" id="msgInput" placeholder="Ketik pesan..." onkeypress="if(event.key==='Enter') sendMessage()">
+    
+    <button type="button" class="btn-send" onclick="sendMessage()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+        </svg>
+    </button>
+</div>
+
+</div>
+
+
+<!-- Halaman Khusus Ubah Nama Panggilan -->
+<div id="nickname-screen" class="screen" style="display: none; padding: 15px; background: var(--bg-main, #111b21); min-height: 100vh; color: var(--text-main, #fff);">
+    
+    <!-- Header Halaman -->
+    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+        <button onclick="showScreen('home-screen')" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">←</button>
+        <h2 style="margin: 0; font-size: 18px;">Ubah Nama Panggilan</h2>
+    </div>
+
+    <p style="font-size: 13px; color: #aaa; margin-bottom: 15px;">Pilih kontak atau pengguna chat untuk mengubah nama panggilannya:</p>
+
+    <!-- Container Daftar Kontak & Chat -->
+    <div id="nicknameListContainer" style="display: flex; flex-direction: column; gap: 10px;">
+        <!-- Item akan dirender oleh JS -->
+    </div>
+</div>
+
+
+    <!-- SCREEN 3: SETTINGS -->
+    <div id="settings-screen" class="screen">
+        <div class="header">
+            <button class="settings-btn" onclick="goBackFromSettings()">⬅ Kembali</button>
+            <h3>Pengaturan</h3>
+            <div id="statusBadge" class="badge">Standar</div>
+        </div>
+
+        <div class="settings-content">
+            
+            <div class="setting-group">
+                <label>Nama Panggilan (Username)</label>
+                <!-- Tambahkan atribut 'readonly' dan ubah warna latar agar terlihat terkunci -->
+                <input type="text" id="displayNameInput" class="input-box" readonly style="background-color: #e9ecef; color: #6c757d; cursor: not-allowed; margin-bottom: 0;">
+                
+                <!-- Tombol 'Simpan Nama' dihapus -->
+                
+                <!-- Keterangan tambahan -->
+                <small style="color: var(--text-muted); display: block; margin-top: 5px;">Nama akun bersifat permanen dan tidak dapat diubah.</small>
+            </div>
+
+
+            <div class="setting-group">
+                <label>Pilih Tema</label>
+                <select id="themeSelect" class="input-box" onchange="changeTheme()">
+                    <option value="light">Terang (Putih)</option>
+                    <option value="dark">Gelap (Hitam)</option>
+                    <option value="custom">Tema Warna Custom (Admin)</option>
+                </select>
+            </div>
+
+<div class="setting-group">
+    <label>Foto Profil / Logo Kontak</label>
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <!-- Preview Foto -->
+        <div id="avatarPreview" class="avatar" style="width: 55px; height: 55px; font-size: 22px;">
+            E
+        </div>
+        <div style="flex: 1;">
+            <!-- Input File Hidden -->
+            <input type="file" id="avatarFileInput" accept="image/*" onchange="handleImageUpload(event)" style="display: none;">
+            
+            <!-- Tombol Pilih dari Galeri -->
+            <button class="btn" onclick="document.getElementById('avatarFileInput').click()" style="margin: 0; background-color: rgba(255, 255, 255, 0.5); border: 1px solid var(--border-color); color: var(--text-main);">
+                📁 Pilih Dari Galeri
+            </button>
+        </div>
+    </div>
+    
+    <div style="display: flex; gap: 8px;">
+        <button class="btn" onclick="resetAvatar()" style="background: #dc3545; flex: 1;">Hapus Foto (Pakai Bawaan)</button>
+    </div>
+    <small style="color: var(--text-muted); display: block; margin-top: 6px;">Jika tidak upload foto, otomatis menggunakan logo/inisial bawaan.</small>
+</div>
+
+
+            <div class="setting-group toggle-wrap">
+                <label style="margin:0;">Notifikasi Chat Masuk</label>
+                <input type="checkbox" id="notifToggle" onchange="toggleNotif()" style="transform: scale(1.5);">
+            </div>
+
+            <div class="setting-group" id="premiumSection">
+                <label>Upgrade Akun</label>
+                <button class="btn btn-gold" onclick="requestPremium()">Beli Status Premium 👑</button>
+            </div>
+
+            <div class="setting-group" id="adminBtnSection" style="display: none;">
+                <label>Khusus Admin</label>
+                <button class="btn btn-danger" onclick="showScreen('admin-screen')">Buka Panel Admin 🛠️</button>
+            </div>
+            
+            <button class="btn" style="background-color: transparent; color: #dc3545; border: 1px solid #dc3545;" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    <!-- HALAMAN TAMBAH KONTAK -->
+    <div id="add-contact-screen" class="screen">
+        <div class="header">
+            <button class="settings-btn" onclick="showScreen('home-screen')">⬅ Kembali</button>
+            <h3>Tambah Kontak</h3>
+        </div>
+        <div style="padding: 20px;">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 14px;">Username User</label>
+                <input type="text" id="addContactUsername" class="input-box" placeholder="Masukkan username..." style="margin: 0;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-size: 14px;">Nama Panggilan (Opsional)</label>
+                <input type="text" id="addContactNickname" class="input-box" placeholder="Masukkan nama panggilan..." style="margin: 0;">
+            </div>
+            <button class="btn" onclick="addContact()">Simpan Kontak</button>
+        </div>
+    </div>
+
+    <!-- SCREEN 4: ADMIN PANEL -->
+    <div id="admin-screen" class="screen">
+        <div class="header">
+            <button class="settings-btn" onclick="showScreen('settings-screen')">⬅ Kembali</button>
+            <h3>Panel Admin</h3>
+        </div>
+        <div class="settings-content">
+            <div class="setting-group">
+                <label>Ganti Warna Tema Custom</label>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Berlaku global untuk semua user yang pakai tema Custom.</p>
+                <input type="color" id="adminColorInput" class="input-box" style="height:50px; padding:0;">
+                <button class="btn" onclick="saveAdminColor()">Terapkan Warna</button>
+            </div>
+
+            <div class="setting-group">
+                <label>Beri Akses Premium ke User</label>
+                <input type="text" id="upgradeUserInput" class="input-box" placeholder="Ketik username target">
+                <button class="btn btn-gold" onclick="grantPremium()">Jadikan Premium</button>
+                
+            </div>
+        </div>
+    </div>
+
+</div>
+<div id="profileModal" class="modal-overlay" style="display: none;" onclick="closeProfileModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <span class="close-btn" onclick="closeProfileModal()">&times;</span>
+        
+        <div id="bigAvatar" class="avatar-big"></div>
+        
+        <h2 id="profileName" style="margin-top: 15px; color: #fff;">Nama User</h2>
+        <p id="profileStatus" style="color: #ccc; margin-top: 5px; font-size: 13px;">User belum membuat status</p>
+
+        <!-- WADAH TOMBOL AKSI -->
+        <div id="modalActionButtons" style="display: flex; justify-content: center; gap: 15px; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <!-- Tombol di-render via JS -->
+        </div>
+    </div>
+</div>
+
+<script>
+    /* =========================================
+       1. KONFIGURASI SUPABASE (YANG BENAR)
+       ========================================= */
+    const SUPABASE_URL = 'https://culzmeehxwfmfbmstvjl.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_hIZa9opK6KDevvwhmOnlOA_yeDWqAqz';
+    
+    // Inisialisasi client Supabase dengan nama variabel 'sb'
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    /* =========================================
+       2. STATE & VARIABEL GLOBAL (TARUH DI SINI)
+       ========================================= */
+    let currentUser = null;
+    let activeChatUser = null;
+    let userContactsList = []; // <--- TAMBAHKAN BARIS INI
+    let notificationsEnabled = localStorage.getItem('chat_notif') === 'true';
+    document.getElementById('notifToggle').checked = notificationsEnabled;
+    /* =========================================
+       3. FUNGSI NAVIGASI LAYAR
+       ========================================= */
+    let previousScreen = 'home-screen';
+
+function showScreen(screenId) {
+    const bottomNav = document.getElementById('bottomNav');
+
+    // Catat layar sebelumnya jika mau masuk ke settings
+    if (screenId === 'settings-screen' || screenId === 'settings') {
+        const currentActive = document.querySelector('.screen.active');
+        if (currentActive) previousScreen = currentActive.id;
+        
+        // SEMBUNYIKAN NAVIGASI BAWAH SAAT MASUK PENGATURAN
+        if (bottomNav) bottomNav.style.display = 'none';
+    } else if (screenId === 'home-screen') {
+        // MUNCULKAN KEMBALI NAVIGASI BAWAH SAAT BALIK KE HOME
+        if (bottomNav) bottomNav.style.display = 'flex';
+    }
+
+    // Sembunyikan semua screen & tampilkan screen tujuan
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const target = document.getElementById(screenId);
+    if (target) target.classList.add('active');
+
+    // ISI KOLOM NAMA SAAT BUKA PENGATURAN
+    if ((screenId === 'settings-screen' || screenId === 'settings') && currentUser) {
+        const input = document.getElementById('displayNameInput');
+        if (input) input.value = currentUser.username || currentUser.display_name || '';
+    }
+}
+
+
+    /* =========================================
+       4. LOGIKA AUTH (LOGIN & REGISTER)
+       ========================================= */
+       // Switch tampilan form
+function switchAuthForm(formType) {
+    document.getElementById('formLogin').style.display = formType === 'login' ? 'block' : 'none';
+    document.getElementById('formRegister').style.display = formType === 'register' ? 'block' : 'none';
+    document.getElementById('formReset').style.display = formType === 'reset' ? 'block' : 'none';
+}
+//waktu
+async function updateMyLastSeen() {
+    if (!currentUser || !currentUser.username) return;
+    
+    const rawUsername = currentUser.username;
+    const cleanUsername = rawUsername.replace(/^@+/, '');
+    const isoNow = new Date().toISOString();
+    
+    await sb
+        .from('users')
+        .update({ last_seen: isoNow })
+        .or(`username.eq.${rawUsername},username.eq.${cleanUsername}`);
+}
+// 1. FUNGSI DAFTAR AKUN
+async function register() {
+    let username = document.getElementById('regUsername').value.trim().toLowerCase();
+    const password = document.getElementById('regPassword').value.trim();
+    const code = document.getElementById('regCode').value.trim();
+
+    if (!username || !password || !code) return alert("Semua kolom harus diisi!");
+    
+    // Format otomatis prefix @ jika user tidak mengetiknya
+    if (!username.startsWith('@')) username = '@' + username;
+
+    const { data: existingUser } = await sb.from('users').select('username').eq('username', username).maybeSingle();
+    if (existingUser) return alert("Username " + username + " sudah dipakai orang lain!");
+
+    const { data: newUser, error } = await sb.from('users').insert([
+        { 
+            username: username, 
+            display_name: username.replace('@', ''), 
+            password: password, 
+            recovery_code: code 
+        }
+    ]).select().single();
+
+    if (error) return alert("Gagal mendaftar: " + error.message);
+
+    alert("Pendaftaran berhasil! Silakan masuk.");
+    switchAuthForm('login');
+}
+async function login() {
+    const usernameInput = document.getElementById('loginUsername');
+    const passwordInput = document.getElementById('loginPassword');
+
+    if (!usernameInput || !passwordInput) {
+        return alert("Error: ID elemen loginUsername atau loginPassword tidak ditemukan di HTML!");
+    }
+
+    let username = usernameInput.value.trim().toLowerCase();
+    const password = passwordInput.value.trim();
+
+    if (!username || !password) return alert("Masukkan username dan kata sandi!");
+    if (!username.startsWith('@')) username = '@' + username;
+
+    try {
+        const { data: user, error } = await sb.from('users').select('*').eq('username', username).maybeSingle();
+
+        if (error) {
+            alert("Error Supabase: " + error.message);
+            return;
+        }
+
+        if (!user) return alert("Username " + username + " tidak ditemukan!");
+        if (user.password !== password) return alert("Kata sandi salah!");
+
+        // 1. Simpan user baru ke memori global & localStorage
+        currentUser = user;
+        localStorage.setItem('chat_user', JSON.stringify(user));
+
+        const displayInput = document.getElementById('displayNameInput');
+        if (displayInput) displayInput.value = currentUser.username;
+
+        const bottomNav = document.getElementById('bottomNav');
+        if (bottomNav) bottomNav.style.display = 'flex';
+
+        showScreen('home-screen');
+
+        // 2. Muat ulang SEMUA data sesuai akun yang baru login
+        if (typeof loadContacts === 'function') loadContacts();
+        if (typeof loadUserSettings === 'function') loadUserSettings();
+        if (typeof loadStatuses === 'function') loadStatuses(); // <-- PENTING: Tambahkan ini biar status di-reset!
+
+    } catch (err) {
+        alert("Terjadi kesalahan script: " + err.message);
+    }
+}
+
+
+async function resetPassword() {
+    let username = document.getElementById('resetUsername').value.trim().toLowerCase();
+    const code = document.getElementById('resetCode').value.trim();
+    const newPass = document.getElementById('newPassword').value.trim();
+
+    if (!username || !code || !newPass) return alert("Semua kolom harus diisi!");
+    if (!username.startsWith('@')) username = '@' + username;
+
+    const { data: user } = await sb.from('users').select('*').eq('username', username).maybeSingle();
+
+    if (!user) return alert("Username tidak ditemukan!");
+    if (user.recovery_code !== code) return alert("Kode keamanan salah!");
+
+    const { error } = await sb.from('users').update({ password: newPass }).eq('username', username);
+
+    if (error) return alert("Gagal mereset sandi: " + error.message);
+
+    alert("Sandi berhasil diperbarui! Silakan login kembali.");
+    switchAuthForm('login');
+}
+
+// Fungsi Logout
+async function logout() {
+    // 1. Perbarui last_seen di database sebelum benar-benar keluar
+    if (typeof updateMyLastSeen === 'function') {
+        await updateMyLastSeen();
+    }
+    
+    // 2. Putuskan channel realtime presence jika sedang aktif
+    if (presenceChannel) {
+        sb.removeChannel(presenceChannel);
+        presenceChannel = null;
+    }
+
+    // 3. Hapus session & bersihkan UI tray status
+    currentUser = null;
+    localStorage.removeItem('chat_user');
+
+    const tray = document.getElementById('statusTray');
+    if (tray) tray.innerHTML = ''; // <-- PENTING: Kosongkan UI status lama
+
+    // 4. Clear input & aktifkan tombol lagi
+    const input = document.getElementById('usernameInput');
+    const btn = document.getElementById('loginBtn');
+    if (input) input.value = '';
+    if (btn) btn.disabled = false;
+
+    // 5. Sembunyikan bottom nav
+    const bottomNav = document.getElementById('bottomNav');
+    if (bottomNav) bottomNav.style.display = 'none';
+
+    // 6. Kembali ke layar login
+    showScreen('auth-screen');
+}
+
+
+    
+
+/* =========================================
+   5. LOGIKA SETELAN PROFIL & TEMA
+   ========================================= */
+async function applyUserSettings() {
+    if (!currentUser) return;
+
+    // 1. TARIK DATA DARI SUPABASE BIAR PASTI DAPAT FOTO LENGKAP
+    try {
+        const { data: userData } = await sb
+            .from('users')
+            .select('*')
+            .eq('username', currentUser.username)
+            .single();
+
+        if (userData) {
+            Object.assign(currentUser, userData); // Ambil semua kolom terbaru termasuk avatar
+        }
+    } catch (err) {
+        console.log("Gagal sync data user:", err);
+    }
+
+    // 2. Render Nama
+    const nameInput = document.getElementById('displayNameInput');
+    if (nameInput) nameInput.value = currentUser.display_name || currentUser.username || '';
+    
+    const headerTitle = document.getElementById('chatHeaderTitle');
+    if (headerTitle) headerTitle.innerText = currentUser.display_name || currentUser.username || '';
+
+    // 3. RENDER FOTO PROFIL (AVATAR) DI SETTING
+    const avatarPreview = document.getElementById('avatarPreview');
+    if (avatarPreview) {
+        // Ambil dari kolom avatar (atau properti lain jika ada)
+        const photo = currentUser.avatar || currentUser.avatar_url || currentUser.photo || currentUser.img;
+
+        if (photo && photo.trim() !== '') {
+            avatarPreview.style.backgroundImage = `url("${photo}")`;
+            avatarPreview.style.backgroundSize = 'cover';
+            avatarPreview.style.backgroundPosition = 'center';
+            avatarPreview.innerText = ''; // Hapus huruf "E"
+        } else {
+            const name = currentUser.display_name || currentUser.username || 'U';
+            avatarPreview.style.backgroundImage = 'none';
+            avatarPreview.innerText = name.charAt(0).toUpperCase();
+        }
+    }
+
+    // 4. Render Wallpaper
+    const wallpaperInput = document.getElementById('wallpaperInput');
+    const chatBox = document.getElementById('chatBox');
+    if (currentUser.wallpaper) {
+        if (wallpaperInput) wallpaperInput.value = currentUser.wallpaper;
+        if (chatBox) chatBox.style.backgroundImage = `url('${currentUser.wallpaper}')`;
+    } else {
+        if (chatBox) chatBox.style.backgroundImage = 'none';
+    }
+
+    // 5. Render Badge Status
+    const badge = document.getElementById('statusBadge');
+    if (badge) {
+        if (currentUser.is_premium) {
+            badge.innerText = "Premium 👑";
+            badge.style.backgroundColor = "#ffd700";
+            badge.style.color = "#000";
+            const premSec = document.getElementById('premiumSection');
+            if (premSec) premSec.style.display = 'none';
+        }
+    }
+
+    const adminSec = document.getElementById('adminBtnSection');
+    if (currentUser.is_admin && adminSec) {
+        adminSec.style.display = 'block';
+    }
+
+    // 6. Render Tema
+    const savedTheme = localStorage.getItem('chat_theme') || 'light';
+    const themeSelect = document.getElementById('themeSelect');
+    if (themeSelect) themeSelect.value = savedTheme;
+    document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
+
+    async function saveProfile() {
+        const newName = document.getElementById('displayNameInput').value;
+        await sb.from('users').update({ display_name: newName }).eq('username', currentUser.username);
+        currentUser.display_name = newName;
+        document.getElementById('chatHeaderTitle').innerText = newName;
+        alert("Nama panggilan berhasil diubah!");
+    }
+
+    async function saveWallpaper() {
+        const bgUrl = document.getElementById('wallpaperInput').value;
+        await sb.from('users').update({ wallpaper: bgUrl }).eq('username', currentUser.username);
+        currentUser.wallpaper = bgUrl;
+        document.getElementById('chatBox').style.backgroundImage = `url('${bgUrl}')`;
+        alert("Wallpaper berhasil dipasang!");
+    }
+
+    function changeTheme() {
+        const theme = document.getElementById('themeSelect').value;
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('chat_theme', theme);
+    }
+
+    function toggleNotif() {
+        notificationsEnabled = document.getElementById('notifToggle').checked;
+        localStorage.setItem('chat_notif', notificationsEnabled);
+        if (notificationsEnabled) {
+            Notification.requestPermission();
+        }
+    }
+
+    function requestPremium() {
+        alert("Permintaan dikirim! Hubungi Admin untuk di-acc jadi Premium.");
+    }
+
+    /* =========================================
+       6. LOGIKA ADMIN (GLOBAL SETTINGS & UPGRADE)
+       ========================================= */
+    async function fetchGlobalSettings() {
+        const { data, error } = await sb.from('app_settings').select('custom_theme_color').single();
+        if (data && data.custom_theme_color) {
+            document.documentElement.style.setProperty('--custom-color', data.custom_theme_color);
+            document.getElementById('adminColorInput').value = data.custom_theme_color;
+        }
+    }
+
+    async function saveAdminColor() {
+        const newColor = document.getElementById('adminColorInput').value;
+        await sb.from('app_settings').update({ custom_theme_color: newColor }).eq('id', 1);
+        document.documentElement.style.setProperty('--custom-color', newColor);
+        alert("Warna tema Custom berhasil diubah secara global!");
+    }
+
+    async function grantPremium() {
+        const targetUser = document.getElementById('upgradeUserInput').value;
+        if (!targetUser) return;
+        const { error } = await sb.from('users').update({ is_premium: true }).eq('username', targetUser);
+        if (error) alert("Gagal: " + error.message);
+        else alert(targetUser + " sekarang adalah akun Premium!");
+    }
+function loadUserSettings() {
+    if (!currentUser) return;
+    
+    // CEK ISI CURRENTUSER DI CONSOLE BROWSER/SPCK
+    console.log("Data currentUser:", currentUser);
+
+    const nameInput = document.getElementById('displayNameInput');
+    if (nameInput) {
+        nameInput.value = currentUser.username || currentUser.display_name || '';
+    }
+
+    const avatarPreview = document.getElementById('avatarPreview');
+    if (avatarPreview) {
+        // Coba tambahkan kemungkinan key lain seperti currentUser.profile_picture, currentUser.img, dll.
+        const photoUrl = currentUser.avatar || currentUser.avatar_url || currentUser.photo || currentUser.img || currentUser.profile_picture || currentUser.foto;
+
+        console.log("URL Photo yang terbaca:", photoUrl);
+
+        if (photoUrl && photoUrl.trim() !== '') {
+            avatarPreview.style.backgroundImage = `url("${photoUrl}")`;
+            avatarPreview.style.backgroundSize = 'cover';
+            avatarPreview.style.backgroundPosition = 'center';
+            avatarPreview.innerText = ''; 
+        } else {
+            const name = currentUser.display_name || currentUser.username || 'U';
+            avatarPreview.style.backgroundImage = 'none';
+            avatarPreview.innerText = name.charAt(0).toUpperCase();
+        }
+    }
+}
+//ada deh
+// Pakai window.pendingImage biar gak ter-overwrite variabel lokal
+// Simpan variabel secara global
+// Variable Global
+window.pendingImage = null;
+
+function handleFileUpload(event) {
+    try {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Simpan gambar ke window
+            window.pendingImage = {
+                url: e.target.result,
+                width: 220
+            };
+
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const previewImg = document.getElementById('previewImgElement');
+            const sizeSelect = document.getElementById('imageSizeSelect');
+            const chatBox = document.getElementById('chatBox');
+
+            if (previewImg) previewImg.src = e.target.result;
+            if (previewContainer) previewContainer.style.display = 'flex';
+            if (sizeSelect) sizeSelect.value = "220";
+            if (chatBox) chatBox.classList.add('has-preview');
+        };
+
+        reader.readAsDataURL(file);
+    } catch (err) {
+        alert("Error Upload: " + err.message);
+    }
+}
+
+function changeImageSize(val) {
+    if (window.pendingImage) {
+        window.pendingImage.width = parseInt(val) || 220;
+    }
+}
+
+function clearSelectedImage() {
+    window.pendingImage = null;
+    
+    const previewContainer = document.getElementById('imagePreviewContainer');
+    const fileInput = document.getElementById('fileInput');
+    const chatBox = document.getElementById('chatBox');
+
+    if (previewContainer) previewContainer.style.display = 'none';
+    if (fileInput) fileInput.value = '';
+    if (chatBox) chatBox.classList.remove('has-preview');
+}
+
+async function sendMessage() {
+    try {
+        const msgInput = document.getElementById('msgInput');
+        const chatBox = document.getElementById('chatBox');
+        const text = msgInput ? msgInput.value.trim() : '';
+
+        // 1. Ambil data gambar dari window.pendingImage
+        const imgData = window.pendingImage;
+
+        // Jika teks dan gambar kosong, hentikan
+        if (!text && !imgData) return;
+
+        const imageUrl = imgData ? imgData.url : null;
+        const imageWidth = imgData ? (imgData.width || 220) : 220;
+
+        // 2. KIRIM KE SUPABASE DATABASE
+        if (typeof sb !== 'undefined' && typeof activeChatUser !== 'undefined') {
+            const { error } = await sb.from('messages').insert({
+                sender: currentUser.username,
+                receiver: activeChatUser,
+                message: text || '',
+                image_url: imageUrl // Send gambar ke kolom baru di SQL
+            });
+
+            if (error) {
+                alert("Gagal kirim ke Supabase: " + error.message);
+                return;
+            }
+        }
+
+        // 3. RENDER LOKAL KE CHAT BOX
+        if (chatBox) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'bubble bubble-out';
+
+            let htmlContent = '';
+            if (imageUrl) {
+                htmlContent += `<img src="${imageUrl}" style="width:${imageWidth}px; max-width:100%; border-radius:10px; display:block; margin-bottom:4px;" alt="gambar">`;
+            }
+            if (text) {
+                htmlContent += `<div>${text}</div>`;
+            }
+
+            msgDiv.innerHTML = htmlContent;
+            chatBox.appendChild(msgDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // =========================================================
+        // 🔥 LOGIKA STACK TO TOP (PERBAARUI URUTAN KONTAK) 🔥
+        // =========================================================
+        if (typeof activeChatUser !== 'undefined' && typeof userContactsList !== 'undefined') {
+            const now = new Date().toISOString();
+
+            // Cari kontak lawan bicara di array kontak utama
+            const contactIndex = userContactsList.findIndex(c => {
+                const target = c.contact_username || c.username || '';
+                return target.replace(/^@+/, '') === String(activeChatUser).replace(/^@+/, '');
+            });
+
+            if (contactIndex !== -1) {
+                // Update timestamp aktivitas terbaru
+                userContactsList[contactIndex].last_activity = now;
+            } else {
+                // Jika belum ada di list lokal, tambahkan kontak baru ke memori
+                userContactsList.push({
+                    contact_username: activeChatUser,
+                    username: activeChatUser,
+                    last_activity: now
+                });
+            }
+
+            // Render ulang list kontak agar otomatis pindah ke urutan paling atas
+            if (typeof renderContacts === 'function') {
+                renderContacts(userContactsList);
+            }
+        }
+
+        // 4. RESET INPUT & PREVIEW
+        if (msgInput) msgInput.value = '';
+        if (typeof clearSelectedImage === 'function') {
+            clearSelectedImage();
+        }
+
+    } catch (err) {
+        console.error("Error sendMessage:", err);
+        alert("Error JS: " + err.message);
+    }
+}
+
+    /* =========================================
+       7. LOGIKA CHAT (FETCH, SEND, REALTIME)
+       ========================================= */
+    async function loadMessages() {
+        if (!activeChatUser) return;
+
+        // Ambil hanya pesan antara currentUser dan activeChatUser (dua arah)
+        const { data, error } = await sb
+            .from('messages')
+            .select('*')
+            .or(`and(sender.eq.${currentUser.username},receiver.eq.${activeChatUser}),and(sender.eq.${activeChatUser},receiver.eq.${currentUser.username})`)
+            .order('created_at', { ascending: true })
+            .limit(100);
+        
+        const chatBox = document.getElementById('chatBox');
+        chatBox.innerHTML = '';
+        
+        if (data) {
+            data.forEach(msg => renderMessage(msg));
+        }
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+async function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const text = input ? input.value.trim() : '';
+    
+    // Ambil data gambar dari window.pendingImage
+    const imgData = window.pendingImage;
+
+    // Jika tidak ada teks DAN tidak ada gambar, atau tidak ada lawan chat, batalkan
+    if ((!text && !imgData) || !activeChatUser) return;
+
+    // Ambil URL/Base64 gambar
+    const imageUrl = imgData ? imgData.url : null;
+
+    if (input) input.value = '';
+
+    // Kirim data ke Supabase (menggunakan kolom 'content' & 'image_url')
+    const { error } = await sb.from('messages').insert([
+        { 
+            sender: currentUser.username, 
+            receiver: activeChatUser, 
+            content: text,
+            image_url: imageUrl,
+            is_read: false
+        }
+    ]);
+
+    if (error) {
+        alert("Gagal mengirim pesan: " + error.message);
+    } else {
+        // Bersihkan preview gambar setelah sukses kirim
+        if (typeof clearSelectedImage === 'function') {
+            clearSelectedImage();
+        }
+    }
+}
+
+// Jalankan fungsi ini di file JS kamu (misal setelah login berhasil)
+function listenIncomingMessages() {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+
+    const myUserClean = currentUser.username.replace(/^@+/, '').trim().toLowerCase();
+
+    sb.channel('realtime_badge_listener')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+            const newMsg = payload.new;
+            if (!newMsg) return;
+
+            const senderClean = (newMsg.sender || '').replace(/^@+/, '').trim().toLowerCase();
+            const receiverClean = (newMsg.receiver || '').replace(/^@+/, '').trim().toLowerCase();
+
+            // Hanya update JIKA penerimanya adalah saya DAN pengirimnya BUKAN saya
+            if (receiverClean === myUserClean && senderClean !== myUserClean) {
+                
+                // =========================================================
+                // 🔥 LOGIKA STACK TO TOP (AUTO SORTING KONTAK REALTIME) 🔥
+                // =========================================================
+                if (typeof userContactsList !== 'undefined' && Array.isArray(userContactsList)) {
+                    const now = newMsg.created_at || new Date().toISOString();
+
+                    const contactIndex = userContactsList.findIndex(c => {
+                        const target = c.contact_username || c.username || '';
+                        return String(target).replace(/^@+/, '').trim().toLowerCase() === senderClean;
+                    });
+
+                    if (contactIndex !== -1) {
+                        // Update timestamp aktivitas terbaru
+                        userContactsList[contactIndex].last_activity = now;
+                    } else {
+                        // Jika pengirim belum ada di daftar kontak lokal, tambahkan
+                        userContactsList.push({
+                            contact_username: senderClean,
+                            username: senderClean,
+                            last_activity: now
+                        });
+                    }
+
+                    // Render ulang daftar kontak supaya langsung loncat ke posisi paling atas
+                    if (typeof renderContacts === 'function') {
+                        renderContacts(userContactsList);
+                    }
+                }
+
+                // --- Bawaan Kode Asli (Badge & Read Status Aman 100%) ---
+                // Jika sedang tidak membuka room chat dengan si pengirim, update badge
+                if (typeof activeChatUser === 'undefined' || activeChatUser !== senderClean) {
+                    if (typeof updateUnreadBadge === 'function') {
+                        updateUnreadBadge(senderClean);
+                    }
+                } else {
+                    // Jika sedang membuka room chat dengan si pengirim, langsung tandai terbaca
+                    if (typeof markMessagesAsRead === 'function') {
+                        markMessagesAsRead(senderClean);
+                    }
+                }
+            }
+        }
+      )
+      .subscribe();
+}
+
+// Panggil pendengar realtime ini
+listenIncomingMessages();
+
+
+   function renderMessage(msg) {
+    const chatBox = document.getElementById('chatBox');
+    if (!chatBox) return;
+
+    const isMine = msg.sender === currentUser.username;
+    const div = document.createElement('div');
+    div.className = `bubble ${isMine ? 'bubble-out' : 'bubble-in'}`;
+    
+    let innerHTMLContent = '';
+
+    // 1. Tampilkan nama sender jika pesan dari orang lain
+    if (!isMine) {
+        const senderClean = msg.sender ? msg.sender.replace(/^@+/, '') : '';
+        innerHTMLContent += `<span class="sender-name">${senderClean}</span><br>`;
+    }
+
+    // 2. Jika ada GAMBAR di database, tampilkan elemen <img>
+    if (msg.image_url) {
+        innerHTMLContent += `<img src="${msg.image_url}" style="width: 220px; max-width: 100%; border-radius: 10px; display: block; margin-bottom: 4px;" alt="Gambar">`;
+    }
+
+    // 3. Jika ada TEKS di database, tampilkan teksnya
+    if (msg.content) {
+        innerHTMLContent += `<div>${msg.content}</div>`;
+    }
+
+    div.innerHTML = innerHTMLContent;
+    
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// Variable global untuk menyimpan instance channel aktif
+let activeMessageChannel = null;
+
+function subscribeToMessages() {
+    // 1. Bersihkan channel lama jika sudah ada (Mencegah Listener Menumpuk/Double)
+    if (activeMessageChannel) {
+        sb.removeChannel(activeMessageChannel);
+        activeMessageChannel = null;
+    }
+
+    // 2. Buat channel baru & simpan ke variabel global
+    activeMessageChannel = sb.channel('public:messages')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+            const newMsg = payload.new;
+            if (!newMsg) return;
+
+            // Ambil username bersih
+            const myUsername = currentUser?.username ? currentUser.username.replace(/^@+/, '').toLowerCase() : '';
+            
+            // Ambil activeChatUser saat event terjadi
+            const rawActiveUser = (typeof activeChatUser !== 'undefined' && activeChatUser) ? activeChatUser : '';
+            const activeUser = rawActiveUser.replace(/^@+/, '').toLowerCase();
+
+            const sender = (newMsg.sender || '').replace(/^@+/, '').toLowerCase();
+            const receiver = (newMsg.receiver || '').replace(/^@+/, '').toLowerCase();
+
+            // Pastikan pesan ini memang ditujukan ke kita atau dikirim oleh kita
+            if (receiver !== myUsername && sender !== myUsername) return;
+
+            // Cek apakah room chat dengan pengirim sedang TERBUKA AKTIF
+            const isCurrentChat = activeUser && (
+                (sender === myUsername && receiver === activeUser) ||
+                (sender === activeUser && receiver === myUsername)
+            );
+
+            if (isCurrentChat) {
+                // Tampilkan pesan di ruang chat yang sedang buka
+                if (typeof renderMessage === 'function') {
+                    renderMessage(newMsg);
+                }
+
+                // Jika pesan dari lawan bicara & room sedang BUKA, tandai langsung dibaca
+                if (sender === activeUser && receiver === myUsername) {
+                    if (typeof markMessagesAsRead === 'function') {
+                        await markMessagesAsRead(activeUser);
+                    }
+                }
+            } else {
+                // HANYA UPDATE BADGE JIKA PESAN MASUK UNTUK KITA DAN ROOM CHAT TIDAK DIBUKA
+                if (receiver === myUsername && sender !== myUsername) {
+                    if (typeof updateUnreadBadge === 'function') {
+                        updateUnreadBadge(sender); // Kirim parameter sender
+                    }
+                    if (typeof loadContacts === 'function') {
+                        loadContacts(); // Refresh daftar kontak
+                    }
+                }
+            }
+
+            // Notifikasi Browser
+            if (myUsername && sender !== myUsername && !isCurrentChat) {
+                if (typeof notificationsEnabled !== 'undefined' && notificationsEnabled) {
+                    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                        new Notification("Pesan baru dari @" + sender, { body: newMsg.content || '' });
+                    }
+                }
+            }
+        })
+        .subscribe();
+}
+
+
+    /* =========================================
+       8. INIT (JALANKAN SAAT WEB DIBUKA)
+       ========================================= */
+    /* =========================================
+   8. INIT
+   ========================================= */
+window.onload = () => {
+    const savedUser = localStorage.getItem('chat_user');
+    if (savedUser) {
+        try {
+            currentUser = JSON.parse(savedUser);
+            const bottomNav = document.getElementById('bottomNav');
+            if (bottomNav) bottomNav.style.display = 'flex';
+            showScreen('home-screen');
+            if (typeof loadContacts === 'function') loadContacts();
+            if (typeof loadUserSettings === 'function') loadUserSettings();
+        } catch (e) {
+            localStorage.removeItem('chat_user');
+        }
+    }
+}
+/* ================= LOGIKA NAVIGASI BAWAH ================= */
+function switchTab(tabName, element) {
+    const bottomNav = document.getElementById('bottomNav');
+
+    // 1. Jika tabName adalah 'settings', sembunyikan bottomNav. Jika tab biasa, tampilkan!
+    if (tabName === 'settings') {
+        if (bottomNav) bottomNav.style.display = 'none';
+    } else {
+        if (bottomNav) bottomNav.style.display = 'flex';
+    }
+
+    // 2. Sembunyikan semua isi tab
+    document.getElementById('tab-kontak').style.display = 'none';
+    document.getElementById('tab-status').style.display = 'none';
+    document.getElementById('tab-developer').style.display = 'none';
+    
+    // Agar tab nickname selalu tertutup saat pindah menu
+    const tabNickname = document.getElementById('tab-nickname');
+    if (tabNickname) tabNickname.style.display = 'none';
+    
+    // 3. Hapus warna aktif dari semua ikon menu
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+    // 4. Tampilkan tab yang dipilih & ganti judul header
+    if (tabName === 'kontak') {
+        document.getElementById('tab-kontak').style.display = 'block';
+        document.getElementById('homeHeaderTitle').innerText = 'Chat Saya';
+    } else if (tabName === 'status') {
+        document.getElementById('tab-status').style.display = 'block';
+        document.getElementById('homeHeaderTitle').innerText = 'Status';
+    } else if (tabName === 'developer') {
+        document.getElementById('tab-developer').style.display = 'block';
+        document.getElementById('homeHeaderTitle').innerText = 'Developer';
+    }
+    
+    // 5. Beri warna aktif pada tombol yang diklik
+    if (element) {
+        element.classList.add('active');
+    }
+}
+
+function goBackFromSettings() {
+    if (previousScreen === 'chat-screen' && activeChatUser) {
+        showScreen('chat-screen');
+    } else {
+        const bottomNav = document.getElementById('bottomNav');
+        if (bottomNav) bottomNav.style.display = 'flex';
+        showScreen('home-screen');
+    }
+}
+async function addContact() {
+    let targetUsername = document.getElementById('addContactUsername').value.trim().toLowerCase();
+    const nickname = document.getElementById('addContactNickname').value.trim() || targetUsername;
+
+    if (!targetUsername) return alert("Masukkan username target!");
+    if (!targetUsername.startsWith('@')) targetUsername = '@' + targetUsername;
+
+    if (targetUsername === currentUser.username) return alert("Tidak bisa menambahkan diri sendiri!");
+
+    const { data: targetUser } = await sb.from('users').select('*').eq('username', targetUsername).maybeSingle();
+    if (!targetUser) return alert("User dengan username " + targetUsername + " tidak ditemukan!");
+
+    const { error } = await sb.from('contacts').insert([
+        { user_id: currentUser.username, contact_username: targetUsername, nickname: nickname }
+    ]);
+
+    if (error && error.code === '23505') {
+        alert("Kontak sudah tersimpan!");
+    } else if (error) {
+        alert("Gagal menambah kontak: " + error.message);
+    } else {
+        alert("Kontak berhasil ditambahkan!");
+        showScreen('home-screen');
+        loadContacts();
+    }
+}
+function getAvatarBgColor(str) {
+    const colors = ['#00a884', '#3498db', '#9b59b6', '#e67e22', '#e74c3c', '#1abc9c', '#fd79a8'];
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+}
+
+async function loadContacts() {
+    if (!currentUser || !currentUser.username) return;
+
+    // 1. Bersihkan username login (tanpa @)
+    const myClean = currentUser.username.replace(/^@+/, '').trim();
+    const myFormats = [myClean, `@${myClean}`];
+
+    // 2. Ambil daftar dari tabel contacts
+    const { data: contacts, error } = await sb
+        .from('contacts')
+        .select('*')
+        .or(`user_id.eq.${myClean},user_id.eq.@${myClean}`);
+    
+    if (error) console.error("Gagal memuat kontak:", error);
+
+    // 3. AMBIL SEMUA PENGIRIM PESAN (Termasuk User Tak Dikenal)
+    const { data: recentMessages, error: msgError } = await sb
+        .from('messages')
+        .select('sender')
+        .in('receiver', myFormats);
+
+    let allChatUsersMap = new Map();
+
+    // A. Masukkan daftar kontak yang tersimpan dulu
+    (contacts || []).forEach(contact => {
+        const rawTarget = contact.contact_username || contact.username || '';
+        const targetClean = rawTarget.replace(/^@+/, '').trim();
+        if (targetClean && targetClean !== myClean) {
+            allChatUsersMap.set(targetClean.toLowerCase(), {
+                contact_username: `@${targetClean}`,
+                nickname: contact.nickname || `@${targetClean}`,
+                is_contact: true,
+                last_activity: contact.updated_at || contact.created_at || new Date(0).toISOString()
+            });
+        }
+    });
+
+    // B. Masukkan pengirim dari pesan masuk yang BELUM ADA di kontak
+    if (!msgError && recentMessages) {
+        recentMessages.forEach(msg => {
+            if (!msg.sender) return;
+            const senderClean = msg.sender.replace(/^@+/, '').trim();
+            const key = senderClean.toLowerCase();
+
+            // Jika sender bukan diri sendiri & belum ada di map kontak, tambahkan sebagai user tak dikenal
+            if (senderClean !== myClean && !allChatUsersMap.has(key)) {
+                allChatUsersMap.set(key, {
+                    contact_username: `@${senderClean}`,
+                    nickname: `@${senderClean}`, // Default nama pakai username
+                    is_contact: false,
+                    last_activity: new Date(0).toISOString()
+                });
+            }
+        });
+    }
+
+    // 4. Hitung unread count & AMBIL PESAN TERAKHIR (untuk urutan stack)
+    const combinedChatList = Array.from(allChatUsersMap.values());
+
+    const contactsWithUnread = await Promise.all(combinedChatList.map(async (chatItem) => {
+        const rawTarget = chatItem.contact_username || '';
+        const targetClean = rawTarget.replace(/^@+/, '').trim();
+        const targetFormats = [targetClean, `@${targetClean}`];
+
+        // A. Hitung pesan unread
+        const { count } = await sb
+            .from('messages')
+            .select('*', { count: 'exact', head: true })
+            .in('sender', targetFormats)
+            .in('receiver', myFormats)
+            .eq('is_read', false);
+
+        // B. 🔥 AMBIL TIMESTAMP PESAN TERAKHIR (Kirim/Terima) UNTUK SORTING
+        const { data: lastMsg } = await sb
+            .from('messages')
+            .select('created_at')
+            .or(`and(sender.in.(${targetFormats.map(t=>`"${t}"`).join(',')}),receiver.in.(${myFormats.map(m=>`"${m}"`).join(',')})),and(sender.in.(${myFormats.map(m=>`"${m}"`).join(',')}),receiver.in.(${targetFormats.map(t=>`"${t}"`).join(',')}))`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        const latestTime = lastMsg ? lastMsg.created_at : chatItem.last_activity;
+
+        return { 
+            ...chatItem, 
+            unread_count: count || 0,
+            last_activity: latestTime
+        };
+    }));
+
+    userContactsList = contactsWithUnread;
+
+    const searchInput = document.getElementById('searchContactInput');
+    if (searchInput) searchInput.value = '';
+    
+    // Auto-sort dan render otomatis terjadi di dalam renderContacts
+    renderContacts(userContactsList);
+
+    // Kunci tambahan: Sekalian panggil loadStatuses() biar status langsung sinkron
+    if (typeof loadStatuses === 'function') {
+        loadStatuses();
+    }
+}
+
+// Fungsi untuk menampilkan list kontak ke HTML
+// 1. Helper untuk generate ID HTML yang aman dari karakter khusus
+function getSafeId(str) {
+    return (str || '').replace(/[^a-zA-Z0-9]/g, '');
+}
+
+// Helper warna avatar berdasarkan nama/username
+function getAvatarBgColor(str) {
+    const colors = ['#00a884', '#3498db', '#9b59b6', '#e67e22', '#e74c3c', '#1abc9c', '#fd79a8'];
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+}
+
+// 1. Helper untuk generate ID HTML yang aman dari karakter khusus
+function getSafeId(str) {
+    return (str || '').replace(/[^a-zA-Z0-9]/g, '');
+}
+
+// 2. Fungsi Render List Kontak
+function renderContacts(list) {
+    const contactList = document.getElementById('contactList');
+    if (!contactList) return;
+    contactList.innerHTML = '';
+
+    if (!list || list.length === 0) {
+        contactList.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px; color: var(--text-muted);">
+                <div style="font-size: 48px; margin-bottom: 10px; opacity: 0.5;">📇</div>
+                <p style="font-weight: 600; font-size: 15px;">Belum Ada Kontak</p>
+                <small>Klik tombol "+ Tambah" di atas untuk menambahkan teman.</small>
+            </div>`;
+        return;
+    }
+
+    // =========================================================
+    // 🔥 FITUR STACKING / URUTAN CHAT TERBARU (AUTO SORTING) 🔥
+    // Urutkan kontak: yang baru diajak chat / ada aktivitas paling atas!
+    // =========================================================
+    list.sort((a, b) => {
+        const timeA = a.last_activity ? new Date(a.last_activity).getTime() : 0;
+        const timeB = b.last_activity ? new Date(b.last_activity).getTime() : 0;
+        return timeB - timeA; // Descending (terbaru di paling atas)
+    });
+
+    list.forEach(c => {
+        const targetUsername = c.contact_username || c.username || '';
+        const displayName = c.nickname || c.display_name || targetUsername || 'User';
+        const initial = displayName.charAt(0).toUpperCase();
+
+        const cleanUser = String(targetUsername).replace(/^@+/, '');
+        const safeBadgeId = cleanUser.replace(/[^a-zA-Z0-9]/g, '');
+        const unreadCount = parseInt(c.unread_count) || 0;
+        const badgeDisplay = unreadCount > 0 ? 'flex' : 'none';
+        const badgeText = unreadCount > 99 ? '99+' : unreadCount;
+
+        // --- AMBIL FOTO: UTAMAKAN DATABASE DULU, CADANGAN LOCALSTORAGE ---
+        const savedAvatar = c.avatar_url || c.avatar || 
+                            localStorage.getItem('avatar_' + cleanUser) || 
+                            localStorage.getItem('avatar_@' + cleanUser);
+        
+        // Buat style avatar dinamis
+        const avatarStyle = savedAvatar 
+            ? `background-image: url('${savedAvatar}'); background-size: cover; background-position: center; color: transparent; margin-right: 0;`
+            : `margin-right: 0;`;
+
+        const item = document.createElement('div');
+        item.className = 'contact-item-card tap-effect';
+
+        item.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
+                <div class="avatar-container">
+                    <!-- 1. TAMBAHKAN onclick DENGAN event.stopPropagation() DI ELEMEN AVATAR -->
+                    <div class="avatar" style="${avatarStyle}" onclick="event.stopPropagation(); zoomContactAvatar(event, '${cleanUser}')">${initial}</div>
+                </div>
+                <div class="contact-info">
+                    <strong style="font-size: 15px; color: var(--text-main); font-weight: 600;">${displayName}</strong>
+                    <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
+                        <small style="color: var(--text-muted); font-size: 12px;">@${cleanUser}</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div id="badge-${safeBadgeId}" class="unread-badge-pill" style="display: ${badgeDisplay};">
+                    ${badgeText}
+                </div>
+                <button class="icon-btn" style="width: 36px; height: 36px; background: rgba(0, 168, 132, 0.1); color: var(--primary-color);">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">chat</span>
+                </button>
+            </div>`;
+        
+        // Klik di luar avatar tetap membuka chat room
+        item.onclick = () => {
+            if (typeof openChatWith === 'function') {
+                openChatWith(targetUsername);
+            }
+        };
+
+        contactList.appendChild(item);
+    });
+}
+
+// Update Badge Pesan Belum Dibaca Menjadi Angka (WhatsApp Style)
+async function updateUnreadBadge(targetUsername) {
+    if (!currentUser || !currentUser.username || !targetUsername) return;
+
+    const myClean = currentUser.username.replace(/^@+/, '').trim();
+    const targetClean = targetUsername.replace(/^@+/, '').trim();
+    const safeId = targetClean.replace(/[^a-zA-Z0-9]/g, '');
+
+    const badgeEl = document.getElementById(`badge-${safeId}`);
+    if (!badgeEl) return;
+
+    const myFormats = [myClean, `@${myClean}`];
+    const targetFormats = [targetClean, `@${targetClean}`];
+
+    // Hitung hanya pesan yang DITERIMA SAYA dari TARGET yang belum dibaca
+    const { count, error } = await sb
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .in('sender', targetFormats)
+        .in('receiver', myFormats)
+        .eq('is_read', false);
+
+    if (error) {
+        console.error("Gagal hitung unread badge:", error);
+        return;
+    }
+
+    if (count && count > 0) {
+        badgeEl.innerText = count > 99 ? '99+' : count;
+        badgeEl.style.display = 'flex';
+    } else {
+        badgeEl.style.display = 'none';
+    }
+}
+
+
+async function markMessagesAsRead(targetUsername) {
+    if (!currentUser || !currentUser.username || !targetUsername) return;
+
+    const myClean = currentUser.username.replace(/^@+/, '').trim();
+    const targetClean = targetUsername.replace(/^@+/, '').trim();
+
+    const myFormats = [myClean, `@${myClean}`];
+    const targetFormats = [targetClean, `@${targetClean}`];
+
+    // Tandai semua pesan DARI target KEPADA saya sebagai ter-baca (is_read = true)
+    const { error } = await sb
+        .from('messages')
+        .update({ is_read: true })
+        .in('sender', targetFormats)
+        .in('receiver', myFormats)
+        .eq('is_read', false);
+
+    if (error) {
+        console.error("Gagal markMessagesAsRead:", error);
+    }
+}
+
+
+async function closeChatRoom() {
+    // Unsubscribe listener realtime agar tidak menerima event nyasar di background
+    if (typeof activeMessageChannel !== 'undefined' && activeMessageChannel) {
+        sb.removeChannel(activeMessageChannel);
+        activeMessageChannel = null;
+    }
+
+    const targetUser = activeChatUser || (typeof activeChatUsername !== 'undefined' ? activeChatUsername : null);
+
+    // Reset variabel chat
+    activeChatUser = null;
+    if (typeof activeChatUsername !== 'undefined') activeChatUsername = null;
+
+    // Sembunyikan UI Modal Chat
+    const chatModal = document.getElementById('chatRoomModal');
+    if (chatModal) chatModal.style.display = 'none';
+
+    // Update DB
+    if (targetUser && typeof markMessagesAsRead === 'function') {
+        await markMessagesAsRead(targetUser);
+    }
+
+    // Refresh kontak
+    if (typeof loadContacts === 'function') {
+        await loadContacts();
+    }
+}
+
+//open chat with
+let presenceChannel = null;
+
+function openChatWith(targetUsername) {
+    if (!targetUsername) return;
+    
+    // 1. Simpan variabel aktif
+    activeChatUser = targetUsername;
+    if (typeof activeChatUsername !== 'undefined') {
+        activeChatUsername = targetUsername;
+    }
+    
+    const cleanUsername = targetUsername.replace(/^@+/, '');
+    const initial = cleanUsername.charAt(0).toUpperCase();
+    
+    // 2. Set UI Header
+    const chatTitle = document.getElementById('chatHeaderTitle');
+    if (chatTitle) {
+        chatTitle.innerHTML = `
+            <div style="display: flex; align-items: center;">
+                <div class="avatar avatar-small">${initial}</div>
+                <div>
+                    <div style="font-size: 15px; font-weight: bold;">@${cleanUsername}</div>
+                    <small id="userStatusText" style="font-size: 11px; color: var(--text-muted);">memuat...</small>
+                </div>
+            </div>`;
+    }
+
+    // 3. Sembunyikan Navigasi & Buka Screen (UI Langsung Pindah)
+    const bottomNav = document.getElementById('bottomNav');
+    if (bottomNav) bottomNav.style.display = 'none';
+    
+    if (typeof showScreen === 'function') {
+        showScreen('chat-screen');
+    }
+
+    // 4. Muat Pesan & Subscribe Realtime
+    if (typeof loadMessages === 'function') loadMessages();
+    if (typeof subscribeToMessages === 'function') subscribeToMessages();
+
+    // 5. Tandai pesan dibaca di background (Tanpa Async/Await blocking UI)
+    if (typeof markMessagesAsRead === 'function') {
+        markMessagesAsRead(targetUsername).catch(err => console.error("Error markAsRead:", err));
+    }
+
+    // 6. Last Seen & Presence
+    if (typeof fetchAndShowLastSeen === 'function') {
+        fetchAndShowLastSeen(targetUsername).then(() => {
+            if (typeof trackUserPresence === 'function') {
+                trackUserPresence(targetUsername);
+            }
+        }).catch(err => console.error(err));
+    }
+}
+
+
+//tracking
+function trackUserPresence(targetUsername) {
+    if (presenceChannel) {
+        sb.removeChannel(presenceChannel);
+        presenceChannel = null;
+    }
+
+    if (!currentUser || !currentUser.username) return;
+
+    const cleanTarget = targetUsername ? targetUsername.replace(/^@+/, '').toLowerCase() : '';
+    const cleanCurrent = currentUser.username.replace(/^@+/, '').toLowerCase();
+
+    presenceChannel = sb.channel('global-presence-room', {
+        config: { presence: { key: cleanCurrent } }
+    });
+
+    presenceChannel
+        .on('presence', { event: 'sync' }, () => {
+            // Pastikan user masih di dalam chat room yang sama saat sync selesai
+            if (activeChatUser !== targetUsername) return;
+
+            const state = presenceChannel.presenceState();
+            const statusEl = document.getElementById('userStatusText');
+            if (!statusEl) return;
+
+            const isOnline = Object.keys(state).some(key => key.toLowerCase() === cleanTarget);
+
+            if (isOnline) {
+                statusEl.innerText = 'online';
+                statusEl.style.color = 'var(--primary-color)';
+            } else {
+                fetchAndShowLastSeen(targetUsername);
+            }
+        })
+        .subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await presenceChannel.track({ online_at: new Date().toISOString() });
+            }
+        });
+}
+
+
+async function closeChat() {
+    activeChatUser = null;
+    
+    if (presenceChannel) {
+        sb.removeChannel(presenceChannel);
+        presenceChannel = null;
+    }
+    
+    const statusEl = document.getElementById('userStatusText');
+    if (statusEl) statusEl.innerText = '';
+
+    const bottomNav = document.getElementById('bottomNav');
+    if (bottomNav) bottomNav.style.display = 'flex';
+    
+    showScreen('home-screen');
+    if (typeof loadContacts === 'function') loadContacts();
+}
+
+// Update waktu jika tab/browser ditutup
+window.addEventListener('beforeunload', () => {
+    updateMyLastSeen();
+});
+
+
+// Fungsi Filter/Pencarian saat user mengetik di input pencarian
+function filterContacts() {
+    const query = document.getElementById('searchContactInput').value.toLowerCase().trim();
+
+    if (!query) {
+        renderContacts(userContactsList);
+        return;
+    }
+
+    // Filter berdasarkan Nickname atau Username
+    const filtered = userContactsList.filter(c => {
+        const nameMatch = c.nickname && c.nickname.toLowerCase().includes(query);
+        const usernameMatch = c.contact_username && c.contact_username.toLowerCase().includes(query);
+        return nameMatch || usernameMatch;
+    });
+
+    renderContacts(filtered);
+}
+function formatLastSeen(dateString) {
+    if (!dateString) return 'offline';
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'offline';
+
+    const now = new Date();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+        return `terakhir dilihat hari ini pukul ${timeStr}`;
+    } else {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `terakhir dilihat ${day}/${month} pukul ${timeStr}`;
+    }
+}
+async function fetchAndShowLastSeen(targetUsername) {
+    const statusEl = document.getElementById('userStatusText');
+    if (!statusEl) return;
+
+    if (!targetUsername) {
+        statusEl.innerText = 'offline';
+        return;
+    }
+
+    const clean = targetUsername.replace(/^@+/, '').trim();
+
+    try {
+        let { data } = await sb
+            .from('users')
+            .select('last_seen')
+            .eq('username', '@' + clean)
+            .maybeSingle();
+
+        if (!data) {
+            const res = await sb
+                .from('users')
+                .select('last_seen')
+                .eq('username', clean)
+                .maybeSingle();
+            data = res.data;
+        }
+
+        const currentEl = document.getElementById('userStatusText');
+        if (!currentEl) return;
+
+        if (data && data.last_seen) {
+            currentEl.innerText = formatLastSeen(data.last_seen);
+        } else {
+            currentEl.innerText = 'offline';
+        }
+        currentEl.style.color = 'var(--text-muted)';
+    } catch (e) {
+        const currentEl = document.getElementById('userStatusText');
+        if (currentEl) {
+            currentEl.innerText = 'offline';
+            currentEl.style.color = 'var(--text-muted)';
+        }
+    }
+}
+
+// Fungsi khusus untuk me-refresh status saat masuk/kembali ke room chat
+async function refreshUserLastSeen(targetUsername) {
+    const statusEl = document.getElementById('userStatusText');
+    if (!statusEl) return;
+
+    if (!targetUsername) {
+        statusEl.innerText = 'offline';
+        return;
+    }
+
+    const clean = targetUsername.replace(/^@+/, '').trim();
+
+    try {
+        // Query sederhana tanpa .or() agar tidak hang
+        const { data, error } = await sb
+            .from('users')
+            .select('last_seen')
+            .eq('username', '@' + clean)
+            .maybeSingle();
+
+        let lastSeenVal = data ? data.last_seen : null;
+
+        // Fallback jika username di DB disimpan tanpa tanda @
+        if (!lastSeenVal) {
+            const resNoAt = await sb
+                .from('users')
+                .select('last_seen')
+                .eq('username', clean)
+                .maybeSingle();
+            if (resNoAt.data) lastSeenVal = resNoAt.data.last_seen;
+        }
+
+        const currentEl = document.getElementById('userStatusText');
+        if (!currentEl) return;
+
+        if (lastSeenVal) {
+            currentEl.innerText = formatLastSeen(lastSeenVal);
+        } else {
+            currentEl.innerText = 'offline';
+        }
+        currentEl.style.color = 'var(--text-muted)';
+
+    } catch (e) {
+        console.error("Gagal refresh status:", e);
+        const currentEl = document.getElementById('userStatusText');
+        if (currentEl) currentEl.innerText = 'offline';
+    }
+}
+// =========================================
+// LOGIKA STATUS WHATSAPP STYLE
+// =========================================
+
+// State Global Status
+let selectedFile = null;
+let currentMode = 'teks'; // 'teks', 'foto', atau 'video'
+let currentEditorBg = '#805b75';
+const bgColors = ['#805b75', '#00a884', '#1f7aec', '#e54255', '#57606f', '#10ac84'];
+let colorIndex = 0;
+
+// State Viewer Status
+let activeStatusList = [];
+let currentStatusIndex = 0;
+let statusTimer = null;
+let progressInterval = null;
+
+// 1. MANAJEMEN BOTTOM SHEET (MENU PICKER MEDIA)
+function showStatusSheet() {
+    const sheet = document.getElementById('statusPickerSheet');
+    if (sheet) sheet.style.display = 'flex';
+}
+
+function hideStatusSheet() {
+    const sheet = document.getElementById('statusPickerSheet');
+    if (sheet) sheet.style.display = 'none';
+}
+
+function closeStatusSheet(e) {
+    if (e.target && e.target.classList.contains('status-sheet-overlay')) {
+        hideStatusSheet();
+    }
+}
+
+function triggerDeviceMedia(type) {
+    const input = document.getElementById('sheetFileInput') || document.getElementById('statusMediaFile');
+    if (input) {
+        input.accept = type === 'all' ? 'image/*,video/*' : type;
+        input.click();
+    }
+}
+
+function handleMediaSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    selectedFile = file;
+    hideStatusSheet();
+    openMediaStatusEditor(file);
+}
+
+// Handling Preview File Pilihan
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    selectedFile = file;
+    openMediaStatusEditor(file);
+}
+
+// 2. MANAJEMEN FULLSCREEN EDITOR & MODE
+function openStatusEditor() {
+    openTextStatusEditor();
+}
+
+function openTextStatusEditor() {
+    hideStatusSheet();
+    selectedFile = null;
+    currentEditorBg = bgColors[0];
+    
+    const modal = document.getElementById('statusEditorModal');
+    if (modal) {
+        modal.style.backgroundColor = currentEditorBg;
+        modal.style.display = 'flex';
+    }
+    
+    switchEditorMode('teks');
+}
+
+function openMediaStatusEditor(file) {
+    const modal = document.getElementById('statusEditorModal');
+    if (modal) {
+        modal.style.backgroundColor = '#000000';
+        modal.style.display = 'flex';
+    }
+
+    const isVideo = file.type.startsWith('video/');
+    switchEditorMode(isVideo ? 'video' : 'foto');
+
+    const previewUrl = URL.createObjectURL(file);
+    const imgPreview = document.getElementById('imgPreview');
+    const videoPreview = document.getElementById('videoPreview');
+
+    if (isVideo) {
+        if (imgPreview) imgPreview.style.display = 'none';
+        if (videoPreview) {
+            videoPreview.src = previewUrl;
+            videoPreview.style.display = 'block';
+        }
+    } else {
+        if (videoPreview) videoPreview.style.display = 'none';
+        if (imgPreview) {
+            imgPreview.src = previewUrl;
+            imgPreview.style.display = 'block';
+        }
+    }
+}
+
+function closeStatusEditor() {
+    const modal = document.getElementById('statusEditorModal');
+    if (modal) modal.style.display = 'none';
+
+    const textContent = document.getElementById('statusTextContent');
+    if (textContent) textContent.value = '';
+
+    const imgPreview = document.getElementById('imgPreview');
+    if (imgPreview) {
+        imgPreview.src = '';
+        imgPreview.style.display = 'none';
+    }
+
+    const videoPreview = document.getElementById('videoPreview');
+    if (videoPreview) {
+        videoPreview.src = '';
+        videoPreview.style.display = 'none';
+    }
+
+    const mediaContainer = document.getElementById('mediaPreviewContainer');
+    if (mediaContainer) mediaContainer.style.display = 'none';
+
+    selectedFile = null;
+}
+
+function changeEditorBg() {
+    if (currentMode !== 'teks') return; // Ubah background hanya pada mode teks
+    colorIndex = (colorIndex + 1) % bgColors.length;
+    currentEditorBg = bgColors[colorIndex];
+    
+    const modal = document.getElementById('statusEditorModal');
+    if (modal) modal.style.backgroundColor = currentEditorBg;
+}
+
+function switchEditorMode(mode) {
+    currentMode = mode;
+
+    const tabTeks = document.getElementById('tabModeTeks');
+    const tabFoto = document.getElementById('tabModeFoto');
+    const tabVideo = document.getElementById('tabModeVideo');
+
+    const textarea = document.getElementById('statusTextContent');
+    const mediaContainer = document.getElementById('mediaPreviewContainer');
+    const fileInput = document.getElementById('statusMediaFile');
+
+    if (tabTeks) tabTeks.classList.toggle('active', mode === 'teks');
+    if (tabFoto) tabFoto.classList.toggle('active', mode === 'foto');
+    if (tabVideo) tabVideo.classList.toggle('active', mode === 'video');
+
+    if (mode === 'teks') {
+        if (textarea) {
+            textarea.style.display = 'block';
+            textarea.placeholder = "Ketik status";
+        }
+        if (mediaContainer) mediaContainer.style.display = 'none';
+        selectedFile = null;
+    } else if (mode === 'foto') {
+        if (textarea) {
+            textarea.style.display = 'block';
+            textarea.placeholder = "Tambah keterangan...";
+        }
+        if (mediaContainer) mediaContainer.style.display = 'block';
+        if (fileInput && !selectedFile) {
+            fileInput.accept = 'image/*';
+            fileInput.click();
+        }
+    } else if (mode === 'video') {
+        if (textarea) {
+            textarea.style.display = 'block';
+            textarea.placeholder = "Tambah keterangan...";
+        }
+        if (mediaContainer) mediaContainer.style.display = 'block';
+        if (fileInput && !selectedFile) {
+            fileInput.accept = 'video/*';
+            fileInput.click();
+        }
+    }
+}
+
+// 3. FUNGSI PUBLISH STATUS KE SUPABASE
+async function publishStatus() {
+    const textElement = document.getElementById('statusTextContent');
+    const textContent = textElement ? textElement.value.trim() : '';
+    const btn = document.getElementById('btnPublishStatus');
+
+    if (!textContent && !selectedFile) {
+        return alert("Ketik teks atau pilih file media terlebih dahulu!");
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>Mengirim...</span>`;
+    }
+
+    let mediaUrl = null;
+
+    try {
+        // 1. Upload File ke Storage Supabase (jika ada file)
+        if (selectedFile) {
+            const fileExt = selectedFile.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+            const filePath = `uploads/${fileName}`;
+
+            const { error: uploadError } = await sb
+                .storage
+                .from('status_media')
+                .upload(filePath, selectedFile);
+
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrlData } = sb
+                .storage
+                .from('status_media')
+                .getPublicUrl(filePath);
+
+            mediaUrl = publicUrlData.publicUrl;
+        }
+
+        // 2. Insert Record ke Tabel Database
+        const { error: dbError } = await sb
+            .from('statuses')
+            .insert([{
+                username: currentUser.username,
+                content: textContent || null,
+                media_url: mediaUrl,
+                media_type: currentMode,
+                bg_color: currentEditorBg
+            }]);
+
+        if (dbError) throw dbError;
+
+        // Reset & Tutup Editor
+        closeStatusEditor();
+
+        // 3. PANGGIL ULANG STATUS AGAR LANGSUNG MUNCIUL DI LAYAR
+        await loadStatuses(); 
+
+        alert("Status berhasil dipublikasikan!");
+
+    } catch (err) {
+        alert("Gagal mengirim status: " + err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `
+                <span>Kirim Status</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            `;
+        }
+    }
+}
+
+// 4. MEMUAT TRAY STATUS HORIZONTAL
+async function loadStatuses() {
+    const tray = document.getElementById('statusTray');
+    if (!tray) return;
+
+    // Filter status aktif 24 jam terakhir
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { data: statuses, error } = await sb
+        .from('statuses')
+        .select('*')
+        .gte('created_at', twentyFourHoursAgo)
+        .order('created_at', { ascending: false });
+
+    if (error) return console.error("Gagal memuat status:", error);
+
+    // Normalisasi username currentUser
+    const cleanCurrent = (currentUser && currentUser.username) 
+        ? currentUser.username.replace(/^@+/, '').toLowerCase() 
+        : '';
+
+    // Filter status milik user yang sedang login (tanpa peduli kapital / @)
+    const myStatuses = statuses 
+        ? statuses.filter(s => s.username && s.username.replace(/^@+/, '').toLowerCase() === cleanCurrent) 
+        : [];
+    const hasMyStatus = myStatuses.length > 0;
+
+    // Render Card Utama (Milik User)
+    let myCardHtml = '';
+
+    if (hasMyStatus) {
+        const latestStatus = myStatuses[0];
+        let bgStyle = '';
+
+        if (latestStatus.media_url && latestStatus.media_type === 'foto') {
+            bgStyle = `background-image: url('${latestStatus.media_url}'); background-size: cover; background-position: center;`;
+        } else {
+            bgStyle = `background-color: ${latestStatus.bg_color || '#805b75'};`;
+        }
+
+        myCardHtml = `
+            <div class="status-card" onclick='openStatusViewer(${JSON.stringify(myStatuses)}, 0)' style="${bgStyle}">
+                <div style="position: relative;">
+                    <div class="avatar-ring">${cleanCurrent.charAt(0).toUpperCase()}</div>
+                    <div onclick="event.stopPropagation(); showStatusSheet();" style="position: absolute; bottom: -2px; right: -2px; background: #00a884; color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid var(--panel-bg); cursor: pointer;">+</div>
+                </div>
+                <span class="username">Status Saya</span>
+            </div>
+        `;
+    } else {
+        myCardHtml = `
+            <div class="status-card" onclick="showStatusSheet()" style="background-color: var(--panel-bg);">
+                <div class="avatar-ring" style="border-color: #ccc; color: var(--text-main);">+</div>
+                <span class="username" style="color: var(--text-main); text-shadow: none;">Tambah Status</span>
+            </div>
+        `;
+    }
+
+    tray.innerHTML = myCardHtml;
+
+    // Render Status Pengguna Lain (HANYA DARI DAFTAR KONTAK)
+    if (statuses) {
+        // 1. Ambil daftar kontak pengguna saat ini dari Supabase
+        let allowedUsernames = [];
+        try {
+            const rawUser = currentUser && currentUser.username ? currentUser.username : '';
+            const formattedUserWithAt = rawUser.startsWith('@') ? rawUser : '@' + rawUser;
+
+            const { data: userContacts } = await sb
+                .from('contacts')
+                .select('contact_username')
+                .or(`user_id.eq.${rawUser},user_id.eq.${formattedUserWithAt}`);
+
+            if (userContacts) {
+                allowedUsernames = userContacts.map(c => 
+                    c.contact_username ? c.contact_username.replace(/^@+/, '').toLowerCase() : ''
+                ).filter(Boolean);
+            }
+        } catch (err) {
+            console.error("Gagal mengambil data kontak untuk status:", err);
+        }
+
+        // 2. Filter: Hanya status milik user lain YANG ADA di allowedUsernames
+        const otherStatuses = statuses.filter(s => {
+            const uname = s.username ? s.username.replace(/^@+/, '').toLowerCase() : '';
+            return uname !== cleanCurrent && allowedUsernames.includes(uname);
+        });
+
+        // 3. Grouping unik berdasarkan clean username
+        const uniqueUsers = [...new Set(otherStatuses.map(s => s.username ? s.username.replace(/^@+/, '').toLowerCase() : ''))].filter(Boolean);
+
+        uniqueUsers.forEach(uname => {
+            const userStatusList = otherStatuses.filter(s => s.username && s.username.replace(/^@+/, '').toLowerCase() === uname);
+            if (userStatusList.length === 0) return;
+
+            const topStatus = userStatusList[0];
+            
+            let bgStyle = '';
+            if (topStatus.media_url && topStatus.media_type === 'foto') {
+                bgStyle = `background-image: url('${topStatus.media_url}'); background-size: cover; background-position: center;`;
+            } else {
+                bgStyle = `background-color: ${topStatus.bg_color || '#805b75'};`;
+            }
+
+            const card = document.createElement('div');
+            card.className = 'status-card';
+            card.style.cssText = bgStyle;
+            
+            // Mengirim list status dan pemilihannya ke viewer
+            card.onclick = () => openStatusViewer(userStatusList, 0);
+
+            card.innerHTML = `
+                <div class="avatar-ring">${uname.charAt(0).toUpperCase()}</div>
+                <span class="username">@${uname}</span>
+            `;
+
+            tray.appendChild(card);
+        });
+    }
+}
+
+// Jalankan saat aplikasi pertama kali dimuat
+document.addEventListener('DOMContentLoaded', () => {
+    loadStatuses();
+});
+
+// 5. VIEWER STATUS LAYAR PENUH
+function openStatusViewer(statusList, startIndex = 0) {
+    if (!statusList || statusList.length === 0) return;
+
+    activeStatusList = statusList;
+    currentStatusIndex = startIndex;
+
+    const overlay = document.getElementById('whatsappStatusViewer');
+    if (overlay) overlay.style.display = 'flex';
+
+    // Set nama header viewer otomatis dari pembuat status
+    const viewerUsernameEl = document.getElementById('viewerUsernameText') || document.querySelector('.viewer-header .username');
+    if (viewerUsernameEl && activeStatusList[currentStatusIndex]) {
+        const owner = activeStatusList[currentStatusIndex].username.replace(/^@+/, '');
+        viewerUsernameEl.innerText = `@${owner}`;
+    }
+
+    renderProgressBars();
+    displayCurrentStatus();
+}
+
+function closeStatusViewer() {
+    clearTimeout(statusTimer);
+    clearInterval(progressInterval);
+    
+    const overlay = document.getElementById('whatsappStatusViewer');
+    if (overlay) overlay.style.display = 'none';
+    
+    // Stop video jika ada
+    const video = document.getElementById('viewerVideoContent');
+    if (video) video.pause();
+}
+
+function renderProgressBars() {
+    const container = document.getElementById('statusProgressContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    activeStatusList.forEach((_, idx) => {
+        const barBg = document.createElement('div');
+        barBg.className = 'wa-progress-bar-bg';
+
+        const barFill = document.createElement('div');
+        barFill.className = 'wa-progress-bar-fill';
+        barFill.id = `statusProgress_${idx}`;
+
+        barBg.appendChild(barFill);
+        container.appendChild(barBg);
+    });
+}
+
+function displayCurrentStatus() {
+    clearTimeout(statusTimer);
+    clearInterval(progressInterval);
+
+    const item = activeStatusList[currentStatusIndex];
+    if (!item) return;
+
+    const isMyStatus = item.username === currentUser.username;
+
+    // Tampilkan / sembunyikan tombol hapus
+    const deleteBtn = document.getElementById('btnDeleteCurrentStatus');
+    if (deleteBtn) {
+        deleteBtn.style.display = isMyStatus ? 'block' : 'none';
+    }
+
+    // Update Progress Bar awal
+    activeStatusList.forEach((_, idx) => {
+        const fill = document.getElementById(`statusProgress_${idx}`);
+        if (!fill) return;
+        if (idx < currentStatusIndex) fill.style.width = '100%';
+        else fill.style.width = '0%';
+    });
+
+    // Update Header Profil
+    const cleanUser = item.username.replace(/^@+/, '');
+    const viewerName = document.getElementById('viewerName');
+    const viewerAvatar = document.getElementById('viewerAvatar');
+    const viewerTime = document.getElementById('viewerTime');
+
+    if (viewerName) viewerName.innerText = isMyStatus ? 'Status saya' : `@${cleanUser}`;
+    if (viewerAvatar) viewerAvatar.innerText = cleanUser.charAt(0).toUpperCase();
+    if (viewerTime) viewerTime.innerText = formatRelativeTime(item.created_at);
+
+    // Footer
+    const footerReply = document.getElementById('viewerReplyFooter');
+    const footerMy = document.getElementById('viewerMyFooter');
+    if (footerReply) footerReply.style.display = isMyStatus ? 'none' : 'flex';
+    if (footerMy) footerMy.style.display = isMyStatus ? 'block' : 'none';
+
+    // Elemen Konten
+    const body = document.getElementById('viewerBody');
+    const txtContent = document.getElementById('viewerTextContent');
+    const imgContent = document.getElementById('viewerImageContent');
+    const videoContent = document.getElementById('viewerVideoContent');
+    const captionContent = document.getElementById('viewerCaption');
+
+    // Reset video sebelumnya jika sedang jalan
+    if (videoContent) {
+        videoContent.pause();
+        videoContent.currentTime = 0;
+        videoContent.onloadedmetadata = null; // Reset event listener
+    }
+
+    // Reset Display
+    if (txtContent) txtContent.style.display = 'none';
+    if (imgContent) imgContent.style.display = 'none';
+    if (videoContent) videoContent.style.display = 'none';
+    if (captionContent) captionContent.style.display = 'none';
+
+    // Logika Pemutaran Progress Bar
+    const startProgressBar = (durationInMs) => {
+        const currentFill = document.getElementById(`statusProgress_${currentStatusIndex}`);
+        let width = 0;
+        const step = 50;
+
+        progressInterval = setInterval(() => {
+            width += (step / durationInMs) * 100;
+            if (currentFill) currentFill.style.width = `${Math.min(width, 100)}%`;
+
+            if (width >= 100) {
+                clearInterval(progressInterval);
+                nextStatus();
+            }
+        }, step);
+    };
+
+    if (item.media_url) {
+        if (body) body.style.backgroundColor = '#000000';
+
+        if (item.media_type === 'video') {
+            if (videoContent) {
+                videoContent.src = item.media_url;
+                videoContent.style.display = 'block';
+
+                // Ambil durasi video begitu file selesai dimuat metadata-nya
+                videoContent.onloadedmetadata = () => {
+                    // Durasi video dalam milidetik (fallback 5 detik jika error)
+                    const videoDurationMs = (videoContent.duration || 5) * 1000;
+                    videoContent.play().catch(err => console.log("Autoplay blocked:", err));
+                    startProgressBar(videoDurationMs);
+                };
+            }
+        } else {
+            // Foto
+            if (imgContent) {
+                imgContent.src = item.media_url;
+                imgContent.style.display = 'block';
+            }
+            startProgressBar(5000); // Durasi default foto 5 detik
+        }
+
+        if (item.content && captionContent) {
+            captionContent.innerText = item.content;
+            captionContent.style.display = 'block';
+        }
+    } else {
+        // Status Teks
+        const safeBgColor = item.bg_color && item.bg_color.trim() !== '' ? item.bg_color : '#805b75';
+        if (body) body.style.backgroundColor = safeBgColor;
+
+        if (txtContent) {
+            txtContent.innerText = item.content || '';
+            txtContent.style.display = 'flex';
+        }
+        startProgressBar(5000); // Durasi default status teks 5 detik
+    }
+}
+
+
+function nextStatus() {
+    if (currentStatusIndex < activeStatusList.length - 1) {
+        currentStatusIndex++;
+        displayCurrentStatus();
+    } else {
+        closeStatusViewer();
+    }
+}
+
+function formatRelativeTime(dateString) {
+    if (!dateString) return 'Baru saja';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffHours = (now - date) / (1000 * 60 * 60);
+
+    if (diffHours < 1) return 'Baru saja';
+    if (diffHours < 24) return `Hari ini ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    return `Kemarin ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+}
+
+// 6. MANAJEMEN HAPUS STATUS
+async function deleteCurrentStatus() {
+    // 1. Ambil item dari list & index yang sedang aktif di viewer
+    const list = window.statusList || activeStatusList || [];
+    const index = window.currentIndex !== undefined ? window.currentIndex : currentStatusIndex;
+    const item = list[index];
+
+    if (!item) {
+        alert("Data status tidak ditemukan.");
+        return;
+    }
+
+    if (!confirm("Hapus pembaruan status ini?")) return;
+
+    // Hentikan timer status viewer saat proses menghapus
+    if (window.statusTimer) clearTimeout(window.statusTimer);
+
+    try {
+        // 2. Hapus file dari Supabase Storage jika status punya media
+        const mediaUrl = item.media_url || item.imageUrl || item.videoUrl || item.url;
+        if (mediaUrl && mediaUrl.includes('/status_media/')) {
+            // Bersihkan query parameters jika ada (misal ?t=12345)
+            const cleanUrl = mediaUrl.split('?')[0];
+            const urlParts = cleanUrl.split('/status_media/');
+            if (urlParts.length > 1) {
+                const filePath = decodeURIComponent(urlParts[1]);
+                await sb.storage.from('status_media').remove([filePath]);
+            }
+        }
+
+        // 3. Hapus record dari Database Supabase
+        const { error } = await sb
+            .from('statuses')
+            .delete()
+            .eq('id', item.id);
+
+        if (error) throw error;
+
+        alert("Status berhasil dihapus.");
+
+        // 4. Update tampilan lokal (hapus dari array)
+        list.splice(index, 1);
+
+        // Refresh daftar status di beranda
+        if (typeof loadStatuses === 'function') loadStatuses();
+        if (typeof viewMyStatus === 'function') viewMyStatus();
+
+        // 5. Cek apakah masih ada status tersisa di viewer
+        if (list.length === 0) {
+            closeStatusViewer();
+        } else {
+            if (window.currentIndex >= list.length) {
+                window.currentIndex = list.length - 1;
+            }
+            renderProgressBars();
+            loadStatusData(window.currentIndex);
+        }
+
+    } catch (err) {
+        alert("Gagal menghapus status: " + err.message);
+        // Resume timer jika gagal
+        if (typeof loadStatusData === 'function') loadStatusData(window.currentIndex);
+    }
+}
+
+// 7. MEMBUKA DAFTAR "STATUS SAYA" (MODAL DAFTAR STATUS)
+async function viewMyStatus() {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
+    const { data: myStatuses, error } = await sb
+        .from('statuses')
+        .select('*')
+        .eq('username', currentUser.username)
+        .gte('created_at', twentyFourHoursAgo)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Gagal mengambil status:", error);
+        return;
+    }
+
+    if (!myStatuses || myStatuses.length === 0) {
+        closeMyStatusDetail();
+        return;
+    }
+
+    const modal = document.getElementById('myStatusDetailModal');
+    const container = document.getElementById('myStatusListContainer');
+    if (!container || !modal) return;
+
+    container.innerHTML = '';
+
+    myStatuses.forEach((st, idx) => {
+        let bgStyle = st.media_url && st.media_type === 'foto' 
+            ? `background-image: url('${st.media_url}')` 
+            : `background-color: ${st.bg_color || '#805b75'}`;
+
+        const item = document.createElement('div');
+        item.className = 'wa-my-status-item';
+        item.onclick = () => {
+            closeMyStatusDetail();
+            openStatusViewer(myStatuses, idx);
+        };
+
+        item.innerHTML = `
+            <div class="wa-my-status-thumb" style="${bgStyle}">
+                ${!st.media_url ? (st.content ? st.content.substring(0, 10) : '') : ''}
+            </div>
+            <div class="wa-my-status-info">
+                <div class="views">0x dilihat</div>
+                <div class="time">${formatRelativeTime(st.created_at)}</div>
+            </div>
+            <div class="delete-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </div>
+        `;
+
+        // Atur listener hapus secara langsung pada DOM agar aman dari petik/string error
+        const deleteBtn = item.querySelector('.delete-icon');
+        if (deleteBtn) {
+            deleteBtn.onclick = (e) => {
+                (st.id, st.media_url || '', e);
+            };
+        }
+
+        container.appendChild(item);
+    });
+
+    modal.style.display = 'flex';
+}
+
+function closeMyStatusDetail() {
+    const modal = document.getElementById('myStatusDetailModal');
+    if (modal) modal.style.display = 'none';
+}
+// Variabel global penampung data
+window.statusList = window.statusList || []; 
+window.currentIndex = 0;
+window.statusTimer = null;
+
+// 1. FUNGSI UNTUK MEMBUKA VIEWER DARI DAFTAR STATUS
+function openStatusViewer(dataArray, startIndex = 0) {
+    // Pastikan data dimasukkan ke statusList
+    if (Array.isArray(dataArray) && dataArray.length > 0) {
+        window.statusList = dataArray;
+    }
+    window.currentIndex = startIndex;
+
+    const modal = document.getElementById('whatsappStatusViewer');
+    const bottomNav = document.getElementById('bottomNav');
+
+    if (modal) modal.style.display = 'flex';
+    if (bottomNav) bottomNav.style.display = 'none';
+
+    renderProgressBars();
+    loadStatusData(window.currentIndex);
+}
+
+// 2. RENDER PROGRESS BAR BERDASARKAN BANYAKNYA STATUS
+function renderProgressBars() {
+    const container = document.getElementById('statusProgressContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const total = window.statusList.length > 0 ? window.statusList.length : 1;
+
+    for (let i = 0; i < total; i++) {
+        const barBg = document.createElement('div');
+        barBg.className = 'wa-progress-bar-bg';
+        
+        const barFill = document.createElement('div');
+        barFill.className = 'wa-progress-bar-fill';
+        barFill.id = `status-progress-fill-${i}`;
+
+        barBg.appendChild(barFill);
+        container.appendChild(barBg);
+    }
+}
+
+// 3. LOGIKA KLIK TAP KIRI / TAP KANAN
+function handleViewerClick(event) {
+    if (event) event.stopPropagation();
+
+    const screenWidth = window.innerWidth;
+    const clickX = event.clientX;
+
+    if (clickX < screenWidth * 0.3) {
+        prevStatus();
+    } else {
+        nextStatus();
+    }
+}
+
+function nextStatus() {
+    if (window.currentIndex < window.statusList.length - 1) {
+        window.currentIndex++;
+        loadStatusData(window.currentIndex);
+    } else {
+        closeStatusModal(); 
+    }
+}
+
+function prevStatus() {
+    if (window.currentIndex > 0) {
+        window.currentIndex--;
+        loadStatusData(window.currentIndex);
+    } else {
+        loadStatusData(0);
+    }
+}
+
+// 4. MEMUAT ISI DATA DAN JALANKAN TIMER
+// MENAMPILKAN DATA STATUS KANVAS/MEDIA
+// MEMUAT ISI DATA DAN JALANKAN TIMER UNTUK STATUS VIEWER
+function loadStatusData(index) {
+    if (window.statusTimer) clearTimeout(window.statusTimer);
+    if (typeof progressInterval !== 'undefined' && progressInterval) clearInterval(progressInterval);
+
+    const imgEl = document.getElementById('viewerImageContent');
+    const videoEl = document.getElementById('viewerVideoContent');
+    const textEl = document.getElementById('viewerTextContent');
+    const captionEl = document.getElementById('viewerCaption');
+
+    const usernameEl = document.getElementById('viewerName');
+    const avatarEl = document.getElementById('viewerAvatar');
+    const deleteBtn = document.getElementById('btnDeleteCurrentStatus');
+
+    const item = window.statusList[index];
+    if (!item) return;
+
+    // 1. Set Profil Viewer
+    const cleanUser = item.username ? item.username.replace(/^@+/, '') : 'User';
+    const isMyStatus = currentUser && item.username === currentUser.username;
+
+    if (usernameEl) usernameEl.innerText = isMyStatus ? "Status Saya" : `@${cleanUser}`;
+    if (avatarEl) avatarEl.innerText = cleanUser.charAt(0).toUpperCase();
+    if (deleteBtn) deleteBtn.style.display = isMyStatus ? 'block' : 'none';
+
+    // 2. Reset Tampilan Konten
+    if (textEl) textEl.style.display = 'none';
+    if (imgEl) imgEl.style.display = 'none';
+    if (videoEl) {
+        videoEl.pause();
+        videoEl.onloadedmetadata = null; // Reset event listener sebelumnya
+        videoEl.onended = null;
+        videoEl.style.display = 'none';
+    }
+    if (captionEl) captionEl.style.display = 'none';
+
+    // 3. Tampilkan Media / Teks sesuai Tipe
+    const body = document.getElementById('viewerBody');
+
+    if (item.media_url) {
+        if (body) body.style.backgroundColor = '#000000';
+
+        if (item.media_type === 'video' && videoEl) {
+            videoEl.src = item.media_url;
+            videoEl.style.display = 'block';
+
+            // Jalankan timer berdasarkan DURASI ASLI VIDEO
+            const handleVideoDuration = () => {
+                const durationInMs = (videoEl.duration || 5) * 1000;
+
+                // Animasikan progress bar secara manual sesuai durasi video
+                const activeFill = document.getElementById(`status-progress-fill-${index}`);
+                if (activeFill) {
+                    activeFill.style.transition = 'none';
+                    activeFill.style.width = '0%';
+                    setTimeout(() => {
+                        activeFill.style.transition = `width ${durationInMs}ms linear`;
+                        activeFill.style.width = '100%';
+                    }, 50);
+                }
+
+                // Pindah ke status berikutnya tepat saat video berakhir
+                window.statusTimer = setTimeout(() => {
+                    nextStatus();
+                }, durationInMs);
+            };
+
+            // Cek apakah metadata sudah siap atau perlu ditunggu
+            if (videoEl.readyState >= 1) {
+                handleVideoDuration();
+            } else {
+                videoEl.onloadedmetadata = handleVideoDuration;
+            }
+
+            videoEl.play().catch(e => console.log("Autoplay error:", e));
+
+        } else if (imgEl) {
+            // Jika Foto -> Pakai durasi standar 5 detik
+            imgEl.src = item.media_url;
+            imgEl.style.display = 'block';
+            startImageTimer(index, 5000);
+        }
+
+        if (item.content && captionEl) {
+            captionEl.innerText = item.content;
+            captionEl.style.display = 'block';
+        }
+    } else if (textEl) {
+        // Jika Teks -> Pakai durasi standar 5 detik
+        if (body) body.style.backgroundColor = item.bg_color || '#805b75';
+        textEl.innerText = item.content || '';
+        textEl.style.display = 'flex';
+        startImageTimer(index, 50000);
+    }
+}
+
+
+// Timer khusus gambar / teks
+function startImageTimer(index, duration) {
+    setTimeout(() => {
+        const activeFill = document.getElementById(`status-progress-fill-${index}`);
+        if (activeFill) {
+            activeFill.style.transition = `width ${duration}ms linear`;
+            activeFill.style.width = '100%';
+        }
+    }, 50);
+
+    window.statusTimer = setTimeout(() => {
+        nextStatus();
+    }, duration);
+}
+
+// MENUTUP VIEWER & STOP SEMUA AUDIO/VIDEO
+function closeStatusModal() {
+    if (window.statusTimer) clearTimeout(window.statusTimer);
+
+    const videoEl = document.getElementById('viewerVideoContent');
+    if (videoEl) {
+        videoEl.pause();
+        videoEl.removeAttribute('src'); // Hapus src agar suara benar-benar mati di background
+        videoEl.load();
+    }
+
+    const modal = document.getElementById('whatsappStatusViewer');
+    const bottomNav = document.getElementById('bottomNav') || 
+                       document.querySelector('.bottom-nav') || 
+                       document.querySelector('.wa-bottom-navigation');
+
+    if (modal) modal.style.display = 'none';
+    if (bottomNav) bottomNav.style.display = 'flex';
+}
+
+function closeStatusViewer() {
+    closeStatusModal();
+}// 1. Fungsi Kirim Balasan Pesan Teks
+async function sendStatusReply() {
+    const inputEl = document.getElementById('statusReplyInput');
+    if (!inputEl) return;
+
+    const messageText = inputEl.value.trim();
+    
+    // Ambil data status dari array/state tersimpan
+    const currentStatus = window.statusList ? window.statusList[window.currentIndex] : null;
+
+    if (!messageText) return;
+
+    if (!currentStatus) {
+        alert("Gagal menemukan data status!");
+        return;
+    }
+
+    // Ambil username pemilik status
+    const statusOwner = currentStatus.username;
+
+    // Hindari kirim balasan ke status sendiri
+    if (statusOwner === currentUser.username) {
+        alert("Kamu tidak bisa membalas status sendiri.");
+        return;
+    }
+
+    // Format isi pesan balasan
+    const formattedMessage = `[Balas Status]: ${messageText}`;
+
+    try {
+        // Gunakan 'sb' (bukan 'supabase') & sesuaikan nama kolom (sender & receiver)
+        const { data, error } = await sb
+            .from('messages')
+            .insert([
+                {
+                    sender: currentUser.username,
+                    receiver: statusOwner,
+                    content: formattedMessage
+                }
+            ]);
+
+        if (error) {
+            // Tampilkan error asli Supabase ke alert agar mudah dibaca
+            alert('Gagal mengirim balasan: ' + error.message);
+            console.error('Supabase Error:', error);
+            return;
+        }
+
+        // Reset input & beri umpan balik
+        inputEl.value = '';
+        alert('Balasan terkirim!');
+
+    } catch (err) {
+        console.error('Gagal mengirim balasan status:', err);
+        alert('Gagal mengirim balasan: ' + err.message);
+    }
+}
+
+// 2. Fungsi Kirim Reaksi Cepat Emoji
+function sendQuickReaction(emoji) {
+    const inputEl = document.getElementById('statusReplyInput');
+    if (!inputEl) return;
+    
+    inputEl.value = emoji;
+    sendStatusReply(); // Langsung kirim emoji sebagai pesan
+}
+item.onclick = (e) => {
+    // Tambahkan class animasi klik
+    item.classList.add('clicking');
+
+    // Beri jeda sebentar agar animasi tekan/pop terlihat sebelum pindah layar
+    setTimeout(() => {
+        item.classList.remove('clicking');
+        if (typeof openChatWith === 'function') {
+            openChatWith(targetUsername);
+        }
+    }, 120);
+};
+// 1. Ambil Username Aktif
+function getCurrentUsername() {
+    // Sesuaikan dengan variabel/input username kamu
+    const inputName = document.getElementById('displayNameInput').value.trim();
+    return inputName || 'default_user';
+}
+
+// Fungsi saat user klik "📁 Pilih Dari Galeri" dan memilih file
+async function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Kompres / Buka file jadi Data URL (Base64)
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const fileData = e.target.result; // Data gambar berupa file Base64
+
+        // 1. Langsung pasang preview gambar di halaman Setting
+        const avatarPreview = document.getElementById('avatarPreview');
+        if (avatarPreview) {
+            avatarPreview.style.backgroundImage = `url("${fileData}")`;
+            avatarPreview.style.backgroundSize = 'cover';
+            avatarPreview.style.backgroundPosition = 'center';
+            avatarPreview.innerText = ''; // Hapus inisial huruf "E"
+        }
+
+        // 2. Simpan file gambar ke database Supabase untuk user aktif
+        const { error } = await sb
+            .from('users')
+            .update({ avatar: fileData })
+            .eq('username', currentUser.username);
+
+        if (error) {
+            alert("Gagal upload gambar: " + error.message);
+        } else {
+            // Perbarui data currentUser lokal
+            currentUser.avatar = fileData;
+            
+            // 🔥 SIMPAN JUGA KE LOCALSTORAGE BIAR CADANGAN LOKAL SINKRON
+            const cleanUser = currentUser.username.replace(/^@+/, '').trim();
+            localStorage.setItem('avatar_' + cleanUser, fileData);
+
+            alert("Foto profil berhasil diperbarui!");
+            if (typeof loadContacts === 'function') loadContacts();
+        }
+    };
+
+    reader.readAsDataURL(file); // Membaca file gambar dari perangkat
+}
+
+// Fungsi Hapus Foto
+async function resetAvatar() {
+    const { error } = await sb
+        .from('users')
+        .update({ avatar: null })
+        .eq('username', currentUser.username);
+
+    if (!error) {
+        currentUser.avatar = null;
+        const cleanUser = currentUser.username.replace(/^@+/, '').trim();
+        localStorage.removeItem('avatar_' + cleanUser);
+        
+        if (typeof updateAvatarUI === 'function') updateAvatarUI();
+        alert("Foto profil berhasil dihapus.");
+    }
+}
+
+// 4. Fungsi Update Tampilan Preview di Pengaturan
+function updateAvatarUI() {
+    const currentUsernameInput = document.getElementById('usernameInput') || document.getElementById('displayNameInput');
+    const rawUsername = currentUsernameInput ? currentUsernameInput.value : (currentUser ? currentUser.username : '');
+    
+    const cleanUser = rawUsername.replace(/^@+/, '').trim();
+
+    // 🔥 UTAMAKAN BACA DARI currentUser.avatar (DATABASE SUPABASE)
+    const savedAvatar = (currentUser && currentUser.avatar) || 
+                        localStorage.getItem('avatar_' + cleanUser) || 
+                        localStorage.getItem('avatar_@' + cleanUser);
+
+    const settingsAvatarEl = document.querySelector('.settings-avatar') || document.getElementById('settingsAvatar');
+    
+    if (settingsAvatarEl) {
+        if (savedAvatar) {
+            settingsAvatarEl.style.backgroundImage = `url('${savedAvatar}')`;
+            settingsAvatarEl.style.backgroundSize = 'cover';
+            settingsAvatarEl.style.backgroundPosition = 'center';
+            settingsAvatarEl.textContent = ''; 
+        } else {
+            settingsAvatarEl.style.backgroundImage = 'none';
+            settingsAvatarEl.style.backgroundColor = 'var(--primary-color)';
+            settingsAvatarEl.textContent = cleanUser ? cleanUser.charAt(0).toUpperCase() : 'U';
+        }
+    }
+}
+
+// 5. Helper Render Foto User Lain (Mendukung Database Supabase + LocalStorage)
+function getUserAvatarHTML(username, avatarUrlFromDB) {
+    const cleanUsername = username.replace(/^@+/, '');
+    const userAvatar = avatarUrlFromDB || localStorage.getItem('avatar_' + cleanUsername);
+    const initial = cleanUsername.charAt(0).toUpperCase();
+
+    if (userAvatar) {
+        return `<div class="avatar" style="background-image: url('${userAvatar}'); background-size: cover; background-position: center; color: transparent;"></div>`;
+    } else {
+        return `<div class="avatar" style="background-color: var(--primary-color);">${initial}</div>`;
+    }
+}
+
+// Helper untuk membaca style avatar (Utamakan dari Data Object DB)
+function getUserAvatarStyle(username, avatarUrlFromDB) {
+    const cleanUsername = username.replace(/^@+/, '');
+    const userAvatar = avatarUrlFromDB || 
+                       localStorage.getItem('avatar_' + cleanUsername) || 
+                       localStorage.getItem('avatar_@' + cleanUsername);
+    
+    if (userAvatar) {
+        return `background-image: url('${userAvatar}'); background-size: cover; background-position: center; color: transparent;`;
+    } else {
+        return `background-color: #00a884;`;
+    }
+}
+
+// Fungsi Buka Modal
+// 1. Fungsi buat Buka Modal (Dipanggil dari HTML kontak)
+async function zoomContactAvatar(e, username) {
+    if (e && e.stopPropagation) e.stopPropagation();
+
+    console.log("1. Avatar diklik untuk user:", username);
+
+    const modal = document.getElementById('profileModal');
+    if (!modal) {
+        alert("ERROR: Elemen #profileModal tidak ditemukan di HTML!");
+        return;
+    }
+
+    const cleanUsername = String(username).replace(/^@+/, '');
+    
+    // Ambil foto dari localStorage dulu (Fast & Offline Ready)
+    const localPhoto = localStorage.getItem('avatar_' + cleanUsername) || 
+                       localStorage.getItem('avatar_@' + cleanUsername);
+
+    let userData = {
+        username: cleanUsername,
+        display_name: cleanUsername,
+        avatar: localPhoto,
+        status: "User belum membuat status"
+    };
+
+    // Coba ambil data terbaru dari Supabase tanpa bikin crash kalau gagal
+    try {
+        if (typeof sb !== 'undefined' && sb !== null) {
+            console.log("2. Mencoba ambil data dari Supabase...");
+            const { data, error } = await sb
+                .from('users')
+                .select('*')
+                .eq('username', cleanUsername)
+                .maybeSingle();
+
+            if (data && !error) {
+                console.log("3. Data Supabase ditemukan:", data);
+                userData = data;
+            }
+        }
+    } catch (err) {
+        console.warn("Supabase error (di-bypass):", err);
+    }
+
+    // PAKSA BUKA MODAL (Di luar try-catch Supabase agar dijamin TERBUKA)
+    console.log("4. Membuka modal...");
+    showProfileModal(e, userData);
+}
+
+// 2. Fungsi helper untuk menampilkan data ke modal
+// Di dalam fungsi showProfileModal()
+function showProfileModal(event, user) {
+    if (event) event.stopPropagation();
+
+    const modal = document.getElementById('profileModal');
+    const avatar = document.getElementById('bigAvatar');
+    const nameEl = document.getElementById('profileName');
+    const statusEl = document.getElementById('profileStatus');
+    const actionContainer = document.getElementById('modalActionButtons');
+
+    if (!modal) return;
+
+    const cleanUsername = String(user.username || '').replace(/^@+/, '');
+
+    // Set Nama & Avatar
+    nameEl.innerText = user.display_name || user.nickname || cleanUsername || 'User';
+
+    const photo = user.avatar || user.avatar_url || user.photo || 
+                  localStorage.getItem('avatar_' + cleanUsername) || 
+                  localStorage.getItem('avatar_@' + cleanUsername);
+
+    if (photo && photo.trim() !== '') {
+        avatar.style.backgroundImage = `url("${photo}")`;
+        avatar.style.backgroundSize = 'cover';
+        avatar.style.backgroundPosition = 'center';
+        avatar.innerText = '';
+    } else {
+        avatar.style.backgroundImage = 'none';
+        avatar.style.backgroundColor = '#29b6f6';
+        avatar.innerText = (user.display_name || cleanUsername || 'U').charAt(0).toUpperCase();
+    }
+
+    // Set Keterangan Status
+    const userStatusText = user.status_text || user.status;
+    if (userStatusText && userStatusText.trim() !== '') {
+        statusEl.innerText = userStatusText;
+        statusEl.style.color = '#fff';
+    } else {
+        statusEl.innerText = `${nameEl.innerText} belum membuat status`;
+        statusEl.style.color = '#ccc';
+    }
+
+    // RENDER DUA TOMBOL SEKALIGUS (PESAN & STATUS)
+    actionContainer.innerHTML = `
+        <button onclick="handleOpenChat('${cleanUsername}')" 
+                style="background: #00a884; color: #fff; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;">
+            💬 Pesan
+        </button>
+        <button onclick="handleCheckStatus('${cleanUsername}')" 
+                style="background: transparent; color: #00b4d8; border: 1px solid #00b4d8; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer;">
+            ⭕ Status
+        </button>
+    `;
+
+    modal.style.display = 'flex';
+}
+
+// Fungsi Buka Chat + Muat Riwayat Pesan
+function handleOpenChat(username) {
+    closeProfileModal();
+
+    const cleanUser = String(username).replace(/^@+/, '');
+
+    // 1. Cek dulu apakah aplikasi kamu butuh format '@username' atau 'username'
+    // Kita coba buka menggunakan fungsi bawaan aplikasi kamu
+    if (typeof openChatWith === 'function') {
+        // Coba kirim cleanUser atau @cleanUser sesuai kebiasaan fungsi openChatWith kamu
+        openChatWith(cleanUser); 
+    } else if (typeof selectContact === 'function') {
+        selectContact(cleanUser);
+    }
+
+    // 2. Trik Utama: Trigger / Simulasi Klik Otomatis Elemen Kontak yang Ada di DOM
+    // Ini menjamin 100% riwayat pesan akan termuat sama persis seperti klik manual!
+    setTimeout(() => {
+        // Cari kartu kontak di daftar kontak berdasarkan username
+        const contactCards = document.querySelectorAll('.contact-item-card');
+        contactCards.forEach(card => {
+            if (card.innerText.includes(cleanUser)) {
+                card.click(); // Jalankan fungsi klik asli bawaan kontak
+            }
+        });
+    }, 50);
+}
+
+
+// Fungsi Cek Status
+function handleCheckStatus(username) {
+    closeProfileModal();
+    const cleanUser = String(username).replace(/^@+/, '').toLowerCase();
+
+    // 1. Jika aplikasi kamu punya fungsi pembuka story bawaan (misal viewStory/openStory)
+    if (typeof viewStory === 'function') {
+        viewStory(cleanUser);
+        return;
+    }
+    if (typeof openStory === 'function') {
+        openStory(cleanUser);
+        return;
+    }
+
+    // 2. Pindah ke Tab Status lebih dulu
+    if (typeof switchTab === 'function') {
+        switchTab('status');
+    } else {
+        const statusTabBtn = document.querySelector('[onclick*="status"]') || 
+                             document.querySelector('.nav-item:nth-child(2)');
+        if (statusTabBtn) statusTabBtn.click();
+    }
+
+    // 3. CARI KARTU STATUS YANG SPESIFIK USER TERSEBUT
+    setTimeout(() => {
+        // Ambil semua elemen kartu status di halaman
+        const allCards = Array.from(document.querySelectorAll('.status-card, [class*="status-item"], [class*="card"]'));
+        
+        let targetCard = null;
+
+        for (const card of allCards) {
+            const text = card.innerText.toLowerCase();
+            
+            // ABAIKAN jika itu kartu status milik sendiri
+            if (text.includes('status saya') || text.includes('my status')) {
+                continue;
+            }
+
+            // CEK apakah kartu ini mengandung username yang dicari (misal: @destroit)
+            if (text.includes(cleanUser) || text.includes('@' + cleanUser)) {
+                targetCard = card;
+                break;
+            }
+        }
+
+        // 4. Eksekusi Klik pada Kartu yang Tepat
+        if (targetCard) {
+            targetCard.click();
+        } else {
+            alert(`@${cleanUser} belum membuat status`);
+        }
+    }, 200);
+}
+
+// Fungsi Tutup Modal
+function closeProfileModal() {
+    const modal = document.getElementById('profileModal');
+    if (modal) {
+        if (typeof modal.close === 'function') {
+            modal.close();
+        } else {
+            modal.style.display = 'none';
+        }
+    }
+}
+
+// 1. FUNGSI PINDAH KE HALAMAN UBAH NAMA PANGGILAN
+// 1. FUNGSI UNTUK MEMBUKA TAB NICKNAME
+function goToNicknameScreen() {
+    const tabKontak = document.getElementById('tab-kontak');
+    const tabNickname = document.getElementById('tab-nickname');
+
+    if (!tabKontak || !tabNickname) {
+        alert("Elemen tab tidak ditemukan!");
+        return;
+    }
+
+    // Sembunyikan tab kontak & tampilkan tab nickname
+    tabKontak.style.display = 'none';
+    tabNickname.style.display = 'block';
+
+    // Render ulang list pengguna
+    renderNicknameList();
+}
+
+// 2. FUNGSI UNTUK KEMBALI KE TAB KONTAK
+function backToTabKontak() {
+    const tabKontak = document.getElementById('tab-kontak');
+    const tabNickname = document.getElementById('tab-nickname');
+
+    if (tabKontak && tabNickname) {
+        tabNickname.style.display = 'none';
+        tabKontak.style.display = 'block';
+    }
+}
+
+// 3. FUNGSI RENDER LIST USER
+function renderNicknameList() {
+    const container = document.getElementById('nicknameListContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    const allUsers = (typeof userContactsList !== 'undefined' && Array.isArray(userContactsList)) 
+        ? userContactsList 
+        : [];
+
+    if (allUsers.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">Belum ada kontak atau obrolan.</p>';
+        return;
+    }
+
+    allUsers.forEach(user => {
+        const rawUsername = user.contact_username || user.username || '';
+        const cleanUser = rawUsername.replace(/^@+/, '').trim();
+        if (!cleanUser) return;
+
+        const currentNickname = user.nickname || `@${cleanUser}`;
+
+        const card = document.createElement('div');
+        card.style.cssText = `
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--panel-bg); 
+            padding: 12px 15px; 
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        `;
+
+        // UBAH WARNA DI SINI MENGGUNAKAN var(--primary-color)
+        card.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-weight: bold; font-size: 15px; color: var(--primary-color);">${currentNickname}</span>
+                <span style="font-size: 12px; color: var(--text-muted);">@${cleanUser}</span>
+            </div>
+            <button onclick="changeSingleNickname('@${cleanUser}', '${currentNickname.replace(/'/g, "\\'")}')" 
+                    style="background: var(--primary-color); color: white; border: none; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;">
+                Ubah
+            </button>
+        `;
+
+        container.appendChild(card);
+    });
+}
+
+
+// 3. PROMPT NAMA BARU & SIMPAN / INSERT KE SUPABASE
+async function changeSingleNickname(targetUsername, oldNickname) {
+    const cleanTarget = String(targetUsername).replace(/^@+/, '').trim();
+
+    const newNickname = prompt(`Masukkan nama panggilan baru untuk @${cleanTarget}:`, oldNickname);
+
+    if (newNickname === null || newNickname.trim() === '') return;
+
+    const trimmedNickname = newNickname.trim();
+    
+    if (!currentUser || !currentUser.username) {
+        return alert("Sesi login tidak ditemukan!");
+    }
+    
+    const myClean = currentUser.username.replace(/^@+/, '').trim();
+
+    // Query Supabase yang disederhanakan dan aman dari error sintaks
+    const { data: existingContact, error: fetchErr } = await sb
+        .from('contacts')
+        .select('*')
+        .eq('user_id', `@${myClean}`)
+        .eq('contact_username', `@${cleanTarget}`)
+        .maybeSingle();
+
+    let error = null;
+
+    if (existingContact) {
+        // Jika sudah ada di kontak -> UPDATE
+        const res = await sb
+            .from('contacts')
+            .update({ nickname: trimmedNickname })
+            .eq('id', existingContact.id);
+        error = res.error;
+    } else {
+        // Jika user tak dikenal (belum ada di kontak) -> INSERT
+        const res = await sb
+            .from('contacts')
+            .insert([{
+                user_id: `@${myClean}`,
+                contact_username: `@${cleanTarget}`,
+                nickname: trimmedNickname
+            }]);
+        error = res.error;
+    }
+
+    if (error) {
+        alert("Gagal mengubah nama panggilan: " + error.message);
+    } else {
+        alert("Nama panggilan berhasil diubah!");
+        
+        if (typeof loadContacts === 'function') {
+            await loadContacts();
+        }
+        
+        renderNicknameList();
+    }
+}
+</script>
+</body>
+</html>
